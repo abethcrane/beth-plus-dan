@@ -275,9 +275,8 @@ header {
 
 /* POLAROID GALLERY */
 .polaroid-scatter {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
+  columns: 4;
+  column-gap: 1.5rem;
   padding: 1rem;
 }
 
@@ -290,6 +289,8 @@ header {
   transition: transform 0.3s, box-shadow 0.3s;
   cursor: pointer;
   position: relative;
+  break-inside: avoid;
+  margin-bottom: 1.5rem;
 }
 
 .polaroid:hover {
@@ -300,8 +301,6 @@ header {
 
 .polaroid img {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
   display: block;
 }
 
@@ -641,8 +640,7 @@ footer {
 /* RESPONSIVE */
 @media (max-width: 900px) {
   .polaroid-scatter {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
+    columns: 3;
   }
 }
 
@@ -673,8 +671,7 @@ footer {
   }
 
   .polaroid-scatter {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    columns: 2;
   }
 
   .facts-inner {
@@ -724,8 +721,8 @@ footer {
   }
 
   .polaroid-scatter {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+    columns: 2;
+    column-gap: 0.75rem;
   }
 
   .polaroid {
