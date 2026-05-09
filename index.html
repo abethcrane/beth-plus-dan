@@ -4,20 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Beth & Dan Need an Apartment!</title>
+
+  <meta property="og:title" content="Beth & Dan Need an Apartment!">
+  <meta property="og:description" content="Friendly couple with good income & credit looking for a place in Ridgewood / Bushwick. We'd love to rent the top floor of your townhouse.">
+  <meta property="og:image" content="assets/photos/ice-cream-window.jpg">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&family=Caveat:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="page-bg"></div>
+  <div class="page-bg-overlay"></div>
   <div class="grain"></div>
 
   <nav>
     <a href="#top" class="nav-logo">B&D</a>
     <div class="nav-links">
       <a href="#about">About Us</a>
+      <a href="#gallery">Photos</a>
       <a href="#wishlist">Wishlist</a>
-      <a href="#game">The Game</a>
+      <a href="#rec">Rec Letter</a>
+      <a href="#game">8-Ball</a>
       <a href="#contact">Contact</a>
     </div>
   </nav>
@@ -29,102 +40,201 @@
       <a href="#about" class="cta-btn">Learn about us &darr;</a>
     </div>
     <div class="hero-img-wrap">
-      <img src="assets/flyer.png" alt="Beth and Dan's apartment hunting flyer" class="hero-flyer">
+      <img src="assets/photos/ice-cream-window.jpg" alt="Beth and Dan at the ice cream window in Ridgewood" class="hero-flyer">
+      <span class="hero-img-caption">us @ the ice cream window</span>
     </div>
   </header>
 
+  <!-- QUICK FACTS -->
+  <div class="facts-strip">
+    <div class="facts-inner">
+      <div class="fact">
+        <span class="fact-label">Budget</span>
+        <span class="fact-value">$3,000 – $4,500/mo</span>
+      </div>
+      <div class="fact-divider"></div>
+      <div class="fact">
+        <span class="fact-label">Move-in</span>
+        <span class="fact-value">Now – Sep 1, 2026</span>
+      </div>
+      <div class="fact-divider"></div>
+      <div class="fact">
+        <span class="fact-label">Income</span>
+        <span class="fact-value">$330k combined</span>
+      </div>
+      <div class="fact-divider"></div>
+      <div class="fact">
+        <span class="fact-label">Credit</span>
+        <span class="fact-value">~800</span>
+      </div>
+      <div class="fact-divider"></div>
+      <div class="fact">
+        <span class="fact-label">Pets</span>
+        <span class="fact-value">None</span>
+      </div>
+      <div class="fact-divider"></div>
+      <div class="fact">
+        <span class="fact-label">People</span>
+        <span class="fact-value">Just us two</span>
+      </div>
+    </div>
+  </div>
+
   <section id="about" class="section">
-    <h2>This is us!</h2>
+    <h2>A little about us</h2>
     <div class="about-grid">
       <div class="about-card">
-        <div class="card-emoji">🌱</div>
-        <h3>Plant parents</h3>
-        <p>We have a small jungle that needs skylights and bay windows. They're very well-behaved.</p>
-      </div>
-      <div class="about-card">
         <div class="card-emoji">💻</div>
-        <h3>WFH crew</h3>
-        <p>We both work from home, so we need a little space — but we promise we're quiet neighbors.</p>
+        <h3>Software engineers</h3>
+        <p>We both work from home most days — Beth since college, Dan more recently via a coding bootcamp. Combined salary of $330k with plenty of savings.</p>
       </div>
       <div class="about-card">
-        <div class="card-emoji">🍕</div>
-        <h3>Community people</h3>
-        <p>Find us at Ridgewood Community Garden, getting coffee at Mixtape, pizza at Panina, or volunteering at the library on Irving.</p>
+        <div class="card-emoji">🌱</div>
+        <h3>Plant people</h3>
+        <p>We have a lot of plants and they'd love some skylights and bay windows. They come with us wherever we go.</p>
+      </div>
+      <div class="about-card">
+        <div class="card-emoji">🎵</div>
+        <h3>Creative outside of work</h3>
+        <p>Dan plays drums in an indie band called Sorry Darling — they practice in Greenpoint, not at home. Beth shoots photography, mostly live music and 35mm film.</p>
+      </div>
+      <div class="about-card">
+        <div class="card-emoji">🏘️</div>
+        <h3>Part of the neighborhood</h3>
+        <p>Beth helps kids with homework at the Washington Irving library. We volunteer at Ridgewood Community Garden. You'll find us at Mixtape or Panina most weekends.</p>
       </div>
       <div class="about-card">
         <div class="card-emoji">🏡</div>
-        <h3>Great tenants</h3>
-        <p>Good income, good credit, good vibes. We take care of our space and treat it like home.</p>
+        <h3>Good tenants</h3>
+        <p>We take care of our space and treat it like home. We're around during the day to handle trash, snow, packages — whatever needs doing.</p>
+      </div>
+      <div class="about-card">
+        <div class="card-emoji">🔧</div>
+        <h3>Comfortable with repairs</h3>
+        <p>We can handle small things without needing to call you. Dan grew up upstate and we help his parents with their house when we visit.</p>
+      </div>
+    </div>
+
+    <div class="about-context">
+      <p><strong>Why are we moving?</strong> Our current landlords are converting their building back into a single family home — sad for us, but we're happy for them. We've been in Bushwick for almost 5 years and love it here. We'd like to stay in the area.</p>
+    </div>
+  </section>
+
+  <!-- PHOTO GALLERY -->
+  <section id="gallery" class="section section-alt">
+    <h2>Some photos</h2>
+    <div class="polaroid-scatter">
+      <div class="polaroid" style="--rotate: -3deg; --x: 0; --y: 0;">
+        <img src="assets/photos/bay-windows-plants.jpg" alt="Our plant corner with keyboard, disco ball, and lots of greenery" loading="lazy">
+        <span class="polaroid-label">the plant corner</span>
+      </div>
+      <div class="polaroid" style="--rotate: 2deg; --x: 0; --y: 0;">
+        <img src="assets/photos/beth-and-dan.jpg" alt="Beth and Dan surrounded by plants" loading="lazy">
+        <span class="polaroid-label">us</span>
+      </div>
+      <div class="polaroid" style="--rotate: -1.5deg; --x: 0; --y: 0;">
+        <img src="assets/photos/bay-windows-1.jpg" alt="Our living room with keyboard and art" loading="lazy">
+        <span class="polaroid-label">our living room</span>
+      </div>
+      <div class="polaroid" style="--rotate: 3deg; --x: 0; --y: 0;">
+        <img src="assets/photos/community-garden.jpg" alt="Volunteering at the Ridgewood Community Garden" loading="lazy">
+        <span class="polaroid-label">ridgewood community garden</span>
+      </div>
+      <div class="polaroid" style="--rotate: -2deg; --x: 0; --y: 0;">
+        <img src="assets/photos/library-volunteering.jpg" alt="Volunteering at Washington Irving library" loading="lazy">
+        <span class="polaroid-label">homework help @ the library</span>
+      </div>
+      <div class="polaroid" style="--rotate: 1deg; --x: 0; --y: 0;">
+        <img src="assets/photos/beth-garden-dog.jpg" alt="Beth at the garden with a dog" loading="lazy">
+        <span class="polaroid-label">beth + a friend</span>
+      </div>
+      <div class="polaroid" style="--rotate: -2.5deg; --x: 0; --y: 0;">
+        <img src="assets/photos/mixtape-dog.jpg" alt="Petting a dog outside Mixtape" loading="lazy">
+        <span class="polaroid-label">outside mixtape</span>
+      </div>
+      <div class="polaroid" style="--rotate: 2.5deg; --x: 0; --y: 0;">
+        <img src="assets/photos/bathroom-plant.jpg" alt="A beautiful plant in the bathroom" loading="lazy">
+        <span class="polaroid-label">even the bathroom has plants</span>
       </div>
     </div>
   </section>
 
-  <section id="wishlist" class="section section-alt">
-    <h2>Our dream apartment has...</h2>
+  <section id="wishlist" class="section">
+    <h2>Hopes and dreams</h2>
     <div class="wishlist-grid">
       <div class="wish-item" data-delay="0">
         <span class="wish-icon">☀️</span>
         <div>
-          <strong>Skylights / bay windows</strong>
-          <p>For the plants (and our souls)</p>
+          <strong>Skylights and/or bay windows</strong>
+          <p>Our plants would love the light</p>
         </div>
       </div>
       <div class="wish-item" data-delay="1">
         <span class="wish-icon">📐</span>
         <div>
-          <strong>Space to work</strong>
-          <p>Room for two desks, two humans, zero commute</p>
+          <strong>Space to breathe</strong>
+          <p>We both work from home a couple days a week, and like to host friends for dinner</p>
         </div>
       </div>
       <div class="wish-item" data-delay="2">
         <span class="wish-icon">🚇</span>
         <div>
           <strong>Near the subway</strong>
-          <p>So we can actually see our friends</p>
+          <p>So that our friends will come and visit</p>
         </div>
       </div>
       <div class="wish-item" data-delay="3">
         <span class="wish-icon">✨</span>
         <div>
           <strong>Character</strong>
-          <p>Feels like home, not a sterile box</p>
+          <p>A place that feels like home, not a box</p>
         </div>
       </div>
       <div class="wish-item" data-delay="4">
         <span class="wish-icon">🛁</span>
         <div>
           <strong>Nice bathroom</strong>
-          <p>We're simple people with non-simple bath standards</p>
+          <p>The dream is good ventilation, enough space, and a walk-in shower</p>
         </div>
       </div>
       <div class="wish-item" data-delay="5">
         <span class="wish-icon">🍳</span>
         <div>
-          <strong>Decent appliances</strong>
-          <p>A stove that actually heats evenly? Revolutionary</p>
+          <strong>A kitchen that's fun to cook in</strong>
+          <p>Decent appliances, some light, a counter people can sit at</p>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- LANDLORD RECOMMENDATION -->
+  <section id="rec" class="section section-alt">
+    <h2>A note from our landlord</h2>
+    <div class="rec-card">
+      <div class="rec-quote-mark">&ldquo;</div>
+      <p class="rec-note">Our current landlords wrote us a recommendation letter. We've been here almost 5 years and are only leaving because they're converting the building back into a single family home.</p>
+      <a href="430 2nd floor rec.pdf" target="_blank" class="cta-btn rec-btn">Read the letter &rarr;</a>
+    </div>
+  </section>
+
   <section id="game" class="section">
-    <h2>Apartment Hunt: The Game</h2>
-    <p class="game-subtitle">Help us dodge the bad apartments and collect the good stuff!<br>Press <kbd>Space</kbd> or <kbd>tap</kbd> to jump.</p>
-    <div class="game-container">
-      <canvas id="gameCanvas" width="800" height="250"></canvas>
-      <div class="game-overlay" id="gameOverlay">
-        <p id="gameMessage">Press Space or Tap to Start</p>
+    <h2>The Apartment 8-Ball</h2>
+    <p class="game-subtitle">Ask it anything about our apartment hunt. Click to shake.</p>
+    <div class="eight-ball-wrap">
+      <div class="eight-ball" id="eightBall">
+        <div class="eight-ball-inner">
+          <div class="eight-ball-window" id="eightBallWindow">
+            <span class="eight-ball-text" id="eightBallText">8</span>
+          </div>
+        </div>
       </div>
-      <div class="game-score">
-        <span>Score: <strong id="scoreDisplay">0</strong></span>
-        <span>Best: <strong id="bestDisplay">0</strong></span>
-      </div>
+      <p class="eight-ball-prompt" id="eightBallPrompt">tap to ask a question</p>
     </div>
   </section>
 
   <section id="contact" class="section section-alt">
-    <h2>Got a place for us?</h2>
-    <p class="contact-subtitle">We'd love to hear from you! Drop us a line and let's chat.</p>
+    <h2>Know of a place?</h2>
+    <p class="contact-subtitle">We'd love to hear from you. Tell us about it and we'll be in touch.</p>
     <form class="contact-form" id="contactForm">
       <div class="form-row">
         <div class="form-group">
@@ -140,15 +250,15 @@
         <label for="message">Tell us about the place!</label>
         <textarea id="message" name="message" rows="5" required placeholder="It's got a skylight, a claw-foot tub, and the M train is two blocks away..."></textarea>
       </div>
-      <button type="submit" class="cta-btn">Send it our way 💌</button>
+      <button type="submit" class="cta-btn">Send it over</button>
     </form>
     <div class="form-success" id="formSuccess" hidden>
-      <p>🎉 Thanks! We'll get back to you soon.</p>
+      <p>Thanks! We'll get back to you soon.</p>
     </div>
   </section>
 
   <footer>
-    <p>Made with ☕ and desperation &middot; Beth & Dan, Ridgewood 2026</p>
+    <p>Beth & Dan &middot; Ridgewood / Bushwick &middot; 2026</p>
   </footer>
 
   <script src="game.js"></script>
