@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beth & Dan Need an Apartment!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="grain"></div>
+
+  <nav>
+    <a href="#top" class="nav-logo">B&D</a>
+    <div class="nav-links">
+      <a href="#about">About Us</a>
+      <a href="#wishlist">Wishlist</a>
+      <a href="#game">The Game</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+
+  <header id="top">
+    <div class="hero-content">
+      <h1>Beth & Dan<br><span>need an apartment</span></h1>
+      <p class="tagline">Friendly, chill, good income + credit.<br>Rent us the top floor of your townhouse!</p>
+      <a href="#about" class="cta-btn">Learn about us &darr;</a>
+    </div>
+    <div class="hero-img-wrap">
+      <img src="assets/flyer.png" alt="Beth and Dan's apartment hunting flyer" class="hero-flyer">
+    </div>
+  </header>
+
+  <section id="about" class="section">
+    <h2>This is us!</h2>
+    <div class="about-grid">
+      <div class="about-card">
+        <div class="card-emoji">🌱</div>
+        <h3>Plant parents</h3>
+        <p>We have a small jungle that needs skylights and bay windows. They're very well-behaved.</p>
+      </div>
+      <div class="about-card">
+        <div class="card-emoji">💻</div>
+        <h3>WFH crew</h3>
+        <p>We both work from home, so we need a little space — but we promise we're quiet neighbors.</p>
+      </div>
+      <div class="about-card">
+        <div class="card-emoji">🍕</div>
+        <h3>Community people</h3>
+        <p>Find us at Ridgewood Community Garden, getting coffee at Mixtape, pizza at Panina, or volunteering at the library on Irving.</p>
+      </div>
+      <div class="about-card">
+        <div class="card-emoji">🏡</div>
+        <h3>Great tenants</h3>
+        <p>Good income, good credit, good vibes. We take care of our space and treat it like home.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="wishlist" class="section section-alt">
+    <h2>Our dream apartment has...</h2>
+    <div class="wishlist-grid">
+      <div class="wish-item" data-delay="0">
+        <span class="wish-icon">☀️</span>
+        <div>
+          <strong>Skylights / bay windows</strong>
+          <p>For the plants (and our souls)</p>
+        </div>
+      </div>
+      <div class="wish-item" data-delay="1">
+        <span class="wish-icon">📐</span>
+        <div>
+          <strong>Space to work</strong>
+          <p>Room for two desks, two humans, zero commute</p>
+        </div>
+      </div>
+      <div class="wish-item" data-delay="2">
+        <span class="wish-icon">🚇</span>
+        <div>
+          <strong>Near the subway</strong>
+          <p>So we can actually see our friends</p>
+        </div>
+      </div>
+      <div class="wish-item" data-delay="3">
+        <span class="wish-icon">✨</span>
+        <div>
+          <strong>Character</strong>
+          <p>Feels like home, not a sterile box</p>
+        </div>
+      </div>
+      <div class="wish-item" data-delay="4">
+        <span class="wish-icon">🛁</span>
+        <div>
+          <strong>Nice bathroom</strong>
+          <p>We're simple people with non-simple bath standards</p>
+        </div>
+      </div>
+      <div class="wish-item" data-delay="5">
+        <span class="wish-icon">🍳</span>
+        <div>
+          <strong>Decent appliances</strong>
+          <p>A stove that actually heats evenly? Revolutionary</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="game" class="section">
+    <h2>Apartment Hunt: The Game</h2>
+    <p class="game-subtitle">Help us dodge the bad apartments and collect the good stuff!<br>Press <kbd>Space</kbd> or <kbd>tap</kbd> to jump.</p>
+    <div class="game-container">
+      <canvas id="gameCanvas" width="800" height="250"></canvas>
+      <div class="game-overlay" id="gameOverlay">
+        <p id="gameMessage">Press Space or Tap to Start</p>
+      </div>
+      <div class="game-score">
+        <span>Score: <strong id="scoreDisplay">0</strong></span>
+        <span>Best: <strong id="bestDisplay">0</strong></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="section section-alt">
+    <h2>Got a place for us?</h2>
+    <p class="contact-subtitle">We'd love to hear from you! Drop us a line and let's chat.</p>
+    <form class="contact-form" id="contactForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="name">Your name</label>
+          <input type="text" id="name" name="name" required placeholder="Friendly landlord">
+        </div>
+        <div class="form-group">
+          <label for="email">Your email</label>
+          <input type="email" id="email" name="email" required placeholder="you@example.com">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="message">Tell us about the place!</label>
+        <textarea id="message" name="message" rows="5" required placeholder="It's got a skylight, a claw-foot tub, and the M train is two blocks away..."></textarea>
+      </div>
+      <button type="submit" class="cta-btn">Send it our way 💌</button>
+    </form>
+    <div class="form-success" id="formSuccess" hidden>
+      <p>🎉 Thanks! We'll get back to you soon.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Made with ☕ and desperation &middot; Beth & Dan, Ridgewood 2026</p>
+  </footer>
+
+  <script src="game.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
