@@ -1,20 +1,4 @@
 (() => {
-  // Scroll-based wishlist reveal
-  const wishItems = document.querySelectorAll('.wish-item');
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const delay = parseInt(entry.target.dataset.delay || '0', 10);
-          setTimeout(() => entry.target.classList.add('visible'), delay * 120);
-          observer.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.2 }
-  );
-  wishItems.forEach((item) => observer.observe(item));
-
   // Contact form
   const form = document.getElementById('contactForm');
   const success = document.getElementById('formSuccess');
