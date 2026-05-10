@@ -794,7 +794,7 @@ header {
   max-width: 600px;
   margin: 0 auto;
   text-align: center;
-  padding: 2.5rem;
+  padding: 3rem 2.5rem 2.5rem;
   background: var(--card-bg);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
@@ -804,13 +804,20 @@ header {
 
 .rec-quote-mark {
   font-family: var(--handwriting);
-  font-size: 5rem;
+  font-size: 4rem;
   color: var(--warm);
   line-height: 1;
   opacity: 0.3;
   position: absolute;
-  top: 0.5rem;
-  left: 1.5rem;
+  top: 1rem;
+  left: 1.2rem;
+}
+
+.rec-quote-close {
+  top: auto;
+  bottom: 0.5rem;
+  left: auto;
+  right: 1.2rem;
 }
 
 .rec-note {
