@@ -21,9 +21,9 @@
     {
       prompt: "Pick a pizza order",
       options: [
-        { text: "Plain slice, perfect crisp", scores: { efficiency: 1, quiet: 1 } },
+        { text: "Oh we're making this from scratch", scores: { efficiency: -1, quiet: 1 } },
         { text: "Grandma slice", scores: { soul: 1, space: 1 } },
-        { text: "Something weird from Roberta's", scores: { soul: 1, quiet: -1 } },
+        { text: "Whatever Panina's special is", scores: { soul: 1, quiet: -1 } },
         { text: "Dollar slice — it's fuel", scores: { efficiency: 1, location: 1 } },
       ],
     },
@@ -49,9 +49,9 @@
       prompt: "Pick a plant",
       options: [
         { text: "Monstera", scores: { soul: 1, space: 1 } },
-        { text: "Pothos (unkillable)", scores: { efficiency: 1 } },
+        { text: "Pothos (they have the will to live)", scores: { efficiency: 1 } },
         { text: "Fire escape herbs", scores: { soul: 1, quiet: -1 } },
-        { text: "I'll kill it", scores: { efficiency: 1, location: 1 } },
+        { text: "I'll pass", scores: { efficiency: 1, location: 1 } },
       ],
     },
     {
@@ -67,8 +67,8 @@
       prompt: "Pick a morning drink",
       options: [
         { text: "Pour-over, the ritual matters", scores: { soul: 1, quiet: 1 } },
-        { text: "Oat cortado from the spot downstairs", scores: { location: 1, quiet: -1 } },
-        { text: "Nespresso, fast and consistent", scores: { efficiency: 1 } },
+        { text: "Oat latte from the spot downstairs", scores: { location: 1, quiet: -1 } },
+        { text: "Orange juice - it's also breakfast!", scores: { efficiency: 1 } },
         { text: "Tea on the fire escape", scores: { soul: 1, space: 1 } },
       ],
     },
@@ -138,7 +138,7 @@
       id: "big-quiet-spot",
       name: "A Huge Apartment Nobody Knows About",
       description: "You're that place 15 minutes further on the train where suddenly you have a dining room, a guest room, and actual counter space. Your friends visit and say 'wait, how much do you pay for THIS?'",
-      axes: { space: 1, efficiency: 1, quiet: -1 },
+      axes: { space: 1, efficiency: 1, quiet: 1 },
     },
     {
       id: "doorman-building",
@@ -229,15 +229,22 @@
     setTimeout(() => cardEl.classList.remove('quiz-card-enter'), 300);
   }
 
+  let transitioning = false;
+
   function pickAnswer(opt) {
+    if (transitioning) return;
     answers.push(opt);
     currentQ++;
 
     if (currentQ >= questions.length) {
       showResult();
     } else {
+      transitioning = true;
       cardEl.classList.add('quiz-card-exit');
-      setTimeout(() => showQuestion(currentQ), 200);
+      setTimeout(() => {
+        showQuestion(currentQ);
+        transitioning = false;
+      }, 200);
     }
   }
 
