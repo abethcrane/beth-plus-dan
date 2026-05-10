@@ -61,7 +61,7 @@ nav {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 10001;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -94,6 +94,7 @@ nav {
 .nav-links a:hover {
   color: var(--warm-light);
 }
+
 
 /* HERO */
 header {
@@ -168,6 +169,11 @@ header {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.hero-btns .cta-btn {
+  margin-top: 0;
 }
 
 .hero-img-wrap {
@@ -850,12 +856,8 @@ footer {
     display: none;
   }
 
-  .nav-links {
-    gap: 1rem;
-  }
-
-  .nav-links a {
-    font-size: 0.8rem;
+  nav {
+    display: none;
   }
 
   .section h2 {
@@ -870,10 +872,6 @@ footer {
 @media (max-width: 480px) {
   nav {
     padding: 0.75rem 1rem;
-  }
-
-  .nav-links {
-    gap: 0.75rem;
   }
 
   .hero-content h1 {
