@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beth + Dan</title>
+
+  <meta property="og:title" content="Beth + Dan">
+  <meta property="og:description" content="A little corner of the internet for Beth & Dan.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://bethplusdan.com">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&family=Caveat:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #2c2a1f;
+      --text: #f5f0e4;
+      --text-muted: #d4ccb8;
+      --accent: #8aab6e;
+      --accent-light: #a8c98e;
+      --warm: #d4a567;
+      --card-bg: rgba(35, 33, 25, 0.75);
+      --border: rgba(245, 240, 228, 0.12);
+      --heading-font: 'Rubik Dirt', 'Caveat', cursive;
+      --handwriting: 'Caveat', cursive;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bg-photo {
+      position: fixed;
+      inset: 0;
+      background: url('assets/ridgewood reservoir.jpg') center center / cover no-repeat;
+      z-index: 0;
+    }
+
+    .bg-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(44, 42, 31, 0.4) 0%, rgba(44, 42, 31, 0.85) 100%);
+      z-index: 0;
+    }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      opacity: 0.04;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 128px 128px;
+    }
+
+    .home {
+      text-align: center;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      font-family: var(--heading-font);
+      font-size: clamp(3rem, 10vw, 6rem);
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 0.25em;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+      font-weight: 400 !important;
+    }
+
+    h1 .plus {
+      color: #9ac8e2;
+    }
+
+    .tagline {
+      font-family: var(--handwriting);
+      font-size: clamp(1.2rem, 3vw, 1.8rem);
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    .link-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1.5rem 2rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      text-decoration: none;
+      color: var(--text);
+      transition: transform 0.2s, border-color 0.2s, background 0.2s;
+      min-width: 180px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .link-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      background: rgba(138, 171, 110, 0.15);
+    }
+
+    .link-card .icon {
+      font-size: 2rem;
+    }
+
+    .link-card .label {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .link-card .desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-family: var(--handwriting);
+      font-size: 1.1rem;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 1.5rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    @media (max-width: 500px) {
+      .links { flex-direction: column; align-items: center; }
+      .link-card { width: 100%; max-width: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-photo"></div>
+  <div class="bg-overlay"></div>
+  <div class="grain"></div>
+
+  <div class="home">
+    <h1>Beth <span class="plus">+</span> Dan</h1>
+    <p class="tagline">a little corner of the internet</p>
+
+    <div class="links">
+      <a href="/apartmenthunt/" class="link-card">
+        <span class="icon">🏠</span>
+        <span class="label">Apartment Hunt</span>
+        <span class="desc">help us find a place!</span>
+      </a>
+    </div>
+  </div>
+
+  <footer>
+    <p>death & bean &middot; 2026</p>
+  </footer>
+</body>
+</html>
