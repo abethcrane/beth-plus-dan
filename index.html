@@ -83,11 +83,29 @@
       margin-bottom: 0.25em;
       text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
       font-weight: 400 !important;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0;
+      min-height: 1.2em;
     }
 
-    h1 .plus {
-      color: #9ac8e2;
+    h1 .letter {
+      display: inline-block;
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.15s, opacity 0.15s;
+      padding: 0 1px;
     }
+
+    h1 .letter:active { cursor: grabbing; }
+    h1 .letter.dragging { opacity: 0.4; transform: scale(0.9); }
+    h1 .letter.drop-target { transform: scale(1.15); }
+
+    h1 .letter.beth { color: #f0a0c0; }
+    h1 .letter.plus { color: #ffffff; }
+    h1 .letter.dan { color: #7bbfed; }
+    h1 .letter.space { width: 0.3em; cursor: default; }
 
     .tagline {
       font-family: var(--handwriting);
@@ -162,20 +180,146 @@
   <div class="grain"></div>
 
   <div class="home">
-    <h1>Beth <span class="plus">+</span> Dan</h1>
-    <p class="tagline">a little corner of the internet</p>
-
-    <div class="links">
-      <a href="/apartmenthunt/" class="link-card">
-        <span class="icon">🏠</span>
-        <span class="label">Apartment Hunt</span>
-        <span class="desc">help us find a place!</span>
-      </a>
-    </div>
+    <h1 id="anagram"></h1>
   </div>
 
   <footer>
     <p>death & bean &middot; 2026</p>
   </footer>
+
+  <script>
+    (() => {
+      const h1 = document.getElementById('anagram');
+      const letters = [
+        { char: 'B', cls: 'beth' },
+        { char: 'e', cls: 'beth' },
+        { char: 't', cls: 'beth' },
+        { char: 'h', cls: 'beth' },
+        { char: ' ', cls: 'space' },
+        { char: '+', cls: 'plus' },
+        { char: ' ', cls: 'space' },
+        { char: 'D', cls: 'dan' },
+        { char: 'a', cls: 'dan' },
+        { char: 'n', cls: 'dan' },
+      ];
+
+      function render() {
+        h1.innerHTML = '';
+        letters.forEach((l, i) => {
+          const span = document.createElement('span');
+          span.textContent = l.char;
+          span.className = `letter ${l.cls}`;
+          span.dataset.index = i;
+          if (l.cls !== 'space') {
+            span.draggable = true;
+            span.addEventListener('dragstart', onDragStart);
+            span.addEventListener('dragend', onDragEnd);
+            span.addEventListener('dragover', onDragOver);
+            span.addEventListener('dragenter', onDragEnter);
+            span.addEventListener('dragleave', onDragLeave);
+            span.addEventListener('drop', onDrop);
+            // touch support
+            span.addEventListener('touchstart', onTouchStart, { passive: false });
+            span.addEventListener('touchmove', onTouchMove, { passive: false });
+            span.addEventListener('touchend', onTouchEnd);
+          }
+          h1.appendChild(span);
+        });
+      }
+
+      let dragIdx = null;
+
+      function onDragStart(e) {
+        dragIdx = +e.target.dataset.index;
+        e.target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      }
+
+      function onDragEnd(e) {
+        e.target.classList.remove('dragging');
+        h1.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+      }
+
+      function onDragOver(e) { e.preventDefault(); }
+      function onDragEnter(e) {
+        e.preventDefault();
+        if (+e.target.dataset.index !== dragIdx) e.target.classList.add('drop-target');
+      }
+      function onDragLeave(e) { e.target.classList.remove('drop-target'); }
+
+      function onDrop(e) {
+        e.preventDefault();
+        const dropIdx = +e.target.dataset.index;
+        e.target.classList.remove('drop-target');
+        if (dragIdx !== null && dragIdx !== dropIdx) {
+          const [moved] = letters.splice(dragIdx, 1);
+          letters.splice(dropIdx, 0, moved);
+          render();
+        }
+        dragIdx = null;
+      }
+
+      // Touch drag support
+      let touchEl = null;
+      let touchClone = null;
+      let touchIdx = null;
+
+      function onTouchStart(e) {
+        const span = e.target;
+        touchIdx = +span.dataset.index;
+        touchEl = span;
+        span.classList.add('dragging');
+
+        touchClone = span.cloneNode(true);
+        touchClone.style.position = 'fixed';
+        touchClone.style.pointerEvents = 'none';
+        touchClone.style.zIndex = '9999';
+        touchClone.style.opacity = '0.8';
+        touchClone.style.fontSize = getComputedStyle(h1).fontSize;
+        touchClone.style.fontFamily = getComputedStyle(h1).fontFamily;
+        document.body.appendChild(touchClone);
+        const t = e.touches[0];
+        touchClone.style.left = t.clientX - 15 + 'px';
+        touchClone.style.top = t.clientY - 25 + 'px';
+        e.preventDefault();
+      }
+
+      function onTouchMove(e) {
+        if (!touchClone) return;
+        const t = e.touches[0];
+        touchClone.style.left = t.clientX - 15 + 'px';
+        touchClone.style.top = t.clientY - 25 + 'px';
+
+        const target = document.elementFromPoint(t.clientX, t.clientY);
+        h1.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+        if (target && target.classList.contains('letter') && target !== touchEl) {
+          target.classList.add('drop-target');
+        }
+        e.preventDefault();
+      }
+
+      function onTouchEnd(e) {
+        if (touchClone) {
+          document.body.removeChild(touchClone);
+          touchClone = null;
+        }
+        if (touchEl) touchEl.classList.remove('dragging');
+
+        const t = e.changedTouches[0];
+        const target = document.elementFromPoint(t.clientX, t.clientY);
+        if (target && target.classList.contains('letter') && target !== touchEl) {
+          const dropIdx = +target.dataset.index;
+          const [moved] = letters.splice(touchIdx, 1);
+          letters.splice(dropIdx, 0, moved);
+          render();
+        }
+        h1.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+        touchEl = null;
+        touchIdx = null;
+      }
+
+      render();
+    })();
+  </script>
 </body>
 </html>
