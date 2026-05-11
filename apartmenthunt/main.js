@@ -1,25 +1,4 @@
 (() => {
-  // Contact form
-  const form = document.getElementById('contactForm');
-  const success = document.getElementById('formSuccess');
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = form.name.value;
-    const email = form.email.value;
-    const message = form.message.value;
-
-    const subject = encodeURIComponent('I have an apartment for Beth & Dan!');
-    const body = encodeURIComponent(
-      `Hi Beth & Dan!\n\nFrom: ${name} (${email})\n\n${message}`
-    );
-
-    window.location.href = `mailto:bethanddanneedanapartment@gmail.com?subject=${subject}&body=${body}`;
-
-    form.hidden = true;
-    success.hidden = false;
-  });
-
   // Smooth nav active state
   const sections = document.querySelectorAll('.section, header');
   const navLinks = document.querySelectorAll('.nav-links a');
