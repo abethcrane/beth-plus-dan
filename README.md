@@ -32,8 +32,8 @@ Then open [http://localhost:8000](http://localhost:8000).
 ```
 index.html          - main page
 style.css           - all styles
-game.js             - apartment 8-ball
-main.js             - scroll animations, contact form, nav
-assets/photos/      - optimized photos
-assets/flyer.png    - the original flyer
+quiz.js             - "which apartment are you?" personality quiz
+main.js             - scroll animations, nav
+game.js             - apartment 8-ball (legacy, unused)
+assets/photos/      - photos (gitignored)
 ```
