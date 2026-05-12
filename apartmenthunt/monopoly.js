@@ -1,5 +1,5 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v9';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v10';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   const JAIL_INDEX = 10;
@@ -562,7 +562,7 @@
 
   function teleportToJail(playerIdx) {
     state.positions[playerIdx] = JAIL_INDEX;
-    state.inJail[playerIdx] = { failedDoubles: 0 };
+    state.inJail[playerIdx] = { failedDoubles: 0, forcedExitDice: null };
     log(`${PLAYER_LABEL[PLAYERS[playerIdx]]}: Trackwork — catch the shuttle bus.`);
     save();
     updatePieces();
@@ -575,7 +575,12 @@
       state.phase = 'player_jail';
       const fd = state.inJail[0].failedDoubles;
       if (fd >= 3) {
-        renderPrompt(`You’re stuck on the shuttle — pay ${formatMoney(JAIL_FINE)} to leave.`);
+        const fe = state.inJail[0].forcedExitDice;
+        renderPrompt(
+          fe != null
+            ? `You’re stuck on the shuttle — pay ${formatMoney(JAIL_FINE)} to leave, then move ${fe} spaces (your last roll).`
+            : `You’re stuck on the shuttle — pay ${formatMoney(JAIL_FINE)} to leave.`,
+        );
       } else {
         renderPrompt(
           `On the shuttle bus — pay ${formatMoney(JAIL_FINE)} before rolling, or try doubles (${3 - fd} tries left).`,
@@ -607,14 +612,29 @@
   function onJailPayFine() {
     if (state.phase !== 'player_jail' || state.winner != null) return;
     if (state.cash[0] < JAIL_FINE) return;
+    const inj = state.inJail[0];
+    const forced = inj?.forcedExitDice;
     charge(0, JAIL_FINE, 'Shuttle fine');
     if (state.winner != null) return;
     state.inJail[0] = null;
     state.phase = 'player_resolving';
     renderHud();
-    humanJailExitThenResolve(() => {
-      endPlayerTurn();
-    });
+    if (forced != null) {
+      state.lastDiceTotal = forced;
+      els.diceEl.textContent = `Fine paid — moving ${forced}`;
+      animateDice();
+      movePlayer(0, forced, () => {
+        resolveLanding(0, () => {
+          if (state.winner != null) return;
+          if (state.phase === 'player_buy') return;
+          endPlayerTurn();
+        });
+      });
+    } else {
+      humanJailExitThenResolve(() => {
+        endPlayerTurn();
+      });
+    }
   }
 
   function onJailRollDoubles() {
@@ -642,6 +662,15 @@
       inj.failedDoubles++;
       log(`No doubles — still on the shuttle (${inj.failedDoubles}/3).`);
       save();
+      if (inj.failedDoubles >= 3) {
+        inj.forcedExitDice = total;
+        state.phase = 'player_jail';
+        renderPrompt(
+          `Third strike — pay ${formatMoney(JAIL_FINE)} to ride again. You’ll move ${total} spaces after paying (no more doubles rolls).`,
+        );
+        renderAll();
+        return;
+      }
       endPlayerTurn();
     }
   }
@@ -661,14 +690,23 @@
         (state.cash[1] >= JAIL_FINE * 3 || inj.failedDoubles >= 2 || Math.random() > 0.45));
 
     if (preferPay && payOk) {
+      const forced = inj.forcedExitDice;
       charge(1, JAIL_FINE, 'Shuttle fine');
       if (state.winner != null) return;
       state.inJail[1] = null;
-      const dice = rollDice();
-      const total = dice[0] + dice[1];
-      els.diceEl.textContent = `${dice[0]} + ${dice[1]} = ${total}`;
-      state.lastDiceTotal = total;
-      animateDice();
+      let total;
+      if (forced != null) {
+        total = forced;
+        els.diceEl.textContent = `Fine paid — moving ${total}`;
+        state.lastDiceTotal = total;
+        animateDice();
+      } else {
+        const dice = rollDice();
+        total = dice[0] + dice[1];
+        els.diceEl.textContent = `${dice[0]} + ${dice[1]} = ${total}`;
+        state.lastDiceTotal = total;
+        animateDice();
+      }
       movePlayer(1, total, () => {
         resolveLanding(1, () => {
           if (state.winner != null) return;
@@ -701,6 +739,9 @@
     } else {
       inj.failedDoubles++;
       log(`${PLAYER_LABEL.ai}: No doubles — still on the shuttle (${inj.failedDoubles}/3).`);
+      if (inj.failedDoubles >= 3) {
+        inj.forcedExitDice = total;
+      }
       save();
       beginHumanTurn();
       renderAll();
