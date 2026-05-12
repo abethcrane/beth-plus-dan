@@ -1,5 +1,5 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v14';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v15';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   /** Classic utility dice multipliers 4 / 10, scaled ×25 like rest of board economy → pay dice×100 or dice×250 */
@@ -242,6 +242,13 @@
       }
 
       body += `<ul class="mono-deed-costs mono-deed-list"><li>Upgrade (each house): ${formatMoney(houseC)}</li><li>Hotel: ${formatMoney(hotelC)} plus 4 houses on this lot</li></ul>`;
+      const mv = mortgageValueFor(idx);
+      const umc = unmortgageCostFor(idx);
+      body += `<p class="mono-deed-note">Mortgage (bank pays you): <strong>${formatMoney(mv)}</strong>. Unmortgage later: <strong>${formatMoney(umc)}</strong> (10% interest).</p>`;
+      if (state.mortgaged[idx]) {
+        body +=
+          '<p class="mono-deed-now"><strong>Mortgaged</strong> — no rent collected until you unmortgage.</p>';
+      }
       if (buildNote) body += `<p class="mono-deed-note">${escapeHtml(buildNote)}</p>`;
       body +=
         '<p class="mono-deed-foot">Own every lot in this color — undeveloped rent doubles on those lots.</p>';
@@ -265,6 +272,12 @@
           '<p class="mono-deed-note">Unowned — after purchase, rent depends on how many transit squares that same owner holds (see table).</p>';
       }
       if (cur != null) body += `<p class="mono-deed-now"><strong>Rent if landed now:</strong> ${formatMoney(cur)}</p>`;
+      const tmv = mortgageValueFor(idx);
+      const tumc = unmortgageCostFor(idx);
+      body += `<p class="mono-deed-note">Mortgage: <strong>${formatMoney(tmv)}</strong>. Unmortgage: <strong>${formatMoney(tumc)}</strong>.</p>`;
+      if (state.mortgaged[idx]) {
+        body += '<p class="mono-deed-now"><strong>Mortgaged</strong> — no transit rent.</p>';
+      }
     } else if (sq.kind === 'utility' && sq.price != null) {
       const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned';
       body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(ownerLabel)}</dd></dl>`;
@@ -279,6 +292,12 @@
         body +=
           '<p class="mono-deed-note">Unowned — rent depends on whether the owner has one or both utilities.</p>';
         body += `<p class="mono-deed-now">Example dice ${dice}: <strong>${formatMoney(dice * UTILITY_PER_DICE_ONE)}</strong> with one utility or <strong>${formatMoney(dice * UTILITY_PER_DICE_BOTH)}</strong> with both.</p>`;
+      }
+      const umv = mortgageValueFor(idx);
+      const uumc = unmortgageCostFor(idx);
+      body += `<p class="mono-deed-note">Mortgage: <strong>${formatMoney(umv)}</strong>. Unmortgage: <strong>${formatMoney(uumc)}</strong>.</p>`;
+      if (state.mortgaged[idx]) {
+        body += '<p class="mono-deed-now"><strong>Mortgaged</strong> — no utility rent.</p>';
       }
     } else if (sq.kind === 'tax' && sq.tax != null) {
       body += `<p class="mono-deed-note">Landing here: pay <strong>${formatMoney(sq.tax)}</strong>.</p>`;
@@ -395,6 +414,117 @@
     return Math.round(sq.price * 0.75);
   }
 
+  /** UK deed: mortgage = half listing price (already ×25 in `sq.price`). */
+  function mortgageValueFor(idx) {
+    const sq = BOARD[idx];
+    if (sq.price == null) return 0;
+    return Math.floor(sq.price / 2);
+  }
+
+  function unmortgageCostFor(idx) {
+    const m = mortgageValueFor(idx);
+    return m + Math.ceil(m * 0.1);
+  }
+
+  function groupHasMortgaged(owner, group) {
+    if (!group) return false;
+    let found = false;
+    BOARD.forEach((sq, idx) => {
+      if (sq.kind !== 'property' || sq.group !== group || state.ownership[idx] !== owner) return;
+      if (state.mortgaged[idx]) found = true;
+    });
+    return found;
+  }
+
+  function maxGroupH(owner, group, ownership, buildings) {
+    let maxH = 0;
+    BOARD.forEach((sq, idx) => {
+      if (sq.group !== group || ownership[idx] !== owner) return;
+      const b = buildings[idx] || { houses: 0, hotel: false };
+      const h = b.hotel ? 5 : b.houses;
+      maxH = Math.max(maxH, h);
+    });
+    return maxH;
+  }
+
+  function canSellHere(owner, idx, ownership, buildings) {
+    const sq = BOARD[idx];
+    if (sq.kind !== 'property' || ownership[idx] !== owner) return false;
+    const b = buildings[idx] || { houses: 0, hotel: false };
+    if (b.hotel) return true;
+    if (b.houses <= 0) return false;
+    const maxH = maxGroupH(owner, sq.group, ownership, buildings);
+    return b.houses === maxH;
+  }
+
+  function canMortgage(playerIdx, idx) {
+    const owner = PLAYERS[playerIdx];
+    if (state.ownership[idx] !== owner || state.mortgaged[idx]) return false;
+    const sq = BOARD[idx];
+    if (sq.price == null) return false;
+    if (sq.kind === 'property') {
+      if (maxGroupH(owner, sq.group, state.ownership, state.buildings) > 0) return false;
+    }
+    return true;
+  }
+
+  function canUnmortgage(playerIdx, idx) {
+    if (state.ownership[idx] !== PLAYERS[playerIdx] || !state.mortgaged[idx]) return false;
+    return state.cash[playerIdx] >= unmortgageCostFor(idx);
+  }
+
+  function applyMortgage(playerIdx, idx) {
+    if (!canMortgage(playerIdx, idx)) return false;
+    const m = mortgageValueFor(idx);
+    state.mortgaged[idx] = true;
+    state.cash[playerIdx] += m;
+    log(`${PLAYER_LABEL[PLAYERS[playerIdx]]} mortgaged ${BOARD[idx].name.replace(/\n/g, ' ')} (+${formatMoney(m)}).`);
+    save();
+    renderAll();
+    return true;
+  }
+
+  function applyUnmortgage(playerIdx, idx) {
+    const c = unmortgageCostFor(idx);
+    if (!canUnmortgage(playerIdx, idx)) return false;
+    state.cash[playerIdx] -= c;
+    delete state.mortgaged[idx];
+    log(`${PLAYER_LABEL[PLAYERS[playerIdx]]} unmortgaged ${BOARD[idx].name.replace(/\n/g, ' ')} (${formatMoney(c)}).`);
+    save();
+    renderAll();
+    return true;
+  }
+
+  function sellOneBuilding(ownerKey, idx) {
+    if (!canSellHere(ownerKey, idx, state.ownership, state.buildings)) return false;
+    const sq = BOARD[idx];
+    const b = state.buildings[idx] || { houses: 0, hotel: false };
+    const pi = ownerKey === 'human' ? 0 : 1;
+    if (b.hotel) {
+      const ref = Math.floor(hotelCostFor(idx) / 2);
+      state.buildings[idx] = { houses: 4, hotel: false };
+      state.cash[pi] += ref;
+      log(`${PLAYER_LABEL[ownerKey]} sold hotel on ${sq.name.replace(/\n/g, ' ')} (+${formatMoney(ref)}).`);
+    } else {
+      const ref = Math.floor(houseCostFor(idx) / 2);
+      state.buildings[idx] = { houses: b.houses - 1, hotel: false };
+      state.cash[pi] += ref;
+      log(`${PLAYER_LABEL[ownerKey]} sold a house on ${sq.name.replace(/\n/g, ' ')} (+${formatMoney(ref)}).`);
+    }
+    save();
+    renderAll();
+    return true;
+  }
+
+  function humanPortfolioLiquidityAllowed() {
+    const ph = state.phase;
+    return ph === 'player_roll' || ph === 'player_buy' || ph === 'player_raise_cash';
+  }
+
+  function humanUnmortgageAllowed() {
+    return state.phase === 'player_roll' && state.paymentDue == null && state.winner == null;
+  }
+
   function rentMultiplier(houses, hotel) {
     if (hotel) return 8;
     if (houses <= 0) return 1;
@@ -422,6 +552,7 @@
     const sq = BOARD[idx];
     const owner = ownership[idx];
     if (!owner || sq.kind === 'corner' || sq.kind === 'tax' || sq.kind === 'nice') return 0;
+    if (state.mortgaged[idx]) return 0;
 
     if (sq.kind === 'transit') {
       /* Rent tiers 1–4 railroads owned (same owner): $625 / $1,250 / $2,500 / $5,000 — see computeRent table */
@@ -466,6 +597,7 @@
 
   function canBuildHere(owner, idx, ownership, buildings) {
     const sq = BOARD[idx];
+    if (groupHasMortgaged(owner, sq.group)) return false;
     const b = buildings[idx] || { houses: 0, hotel: false };
     if (b.hotel) return false;
     if (b.houses === 4 && !b.hotel) {
@@ -518,6 +650,9 @@
       doublesRunHuman: 0,
       doublesRunAi: 0,
       bankruptDetail: null,
+      mortgaged: {},
+      paymentDue: null,
+      paymentResume: null,
     };
   }
 
@@ -557,6 +692,9 @@
       if (typeof state.doublesRunHuman !== 'number') state.doublesRunHuman = 0;
       if (typeof state.doublesRunAi !== 'number') state.doublesRunAi = 0;
       if (!state.bankruptDetail || typeof state.bankruptDetail !== 'object') state.bankruptDetail = null;
+      if (!state.mortgaged || typeof state.mortgaged !== 'object') state.mortgaged = {};
+      if (state.paymentDue != null && typeof state.paymentDue !== 'object') state.paymentDue = null;
+      if (state.paymentResume != null && typeof state.paymentResume !== 'object') state.paymentResume = null;
       return true;
     } catch (_) {
       return false;
@@ -566,6 +704,8 @@
   function bankrupt(loser, detail) {
     state.winner = loser === 0 ? 1 : 0;
     state.phase = 'game_over';
+    state.paymentDue = null;
+    state.paymentResume = null;
     state.bankruptDetail =
       detail && typeof detail.amount === 'number'
         ? { loser, amount: detail.amount, reason: detail.reason ?? '', balanceBefore: detail.balanceBefore ?? 0 }
@@ -609,27 +749,216 @@
     return `The Broker couldn’t cover ${amt} (had ${had}).`;
   }
 
-  function charge(playerIdx, amount, reason, silent) {
+  function paymentResumeFromLandingPay(landingPayCtx) {
+    if (!landingPayCtx || !landingPayCtx.tag) return { mode: 'human_finish_or_double' };
+    switch (landingPayCtx.tag) {
+      case 'human_street':
+        return { mode: 'human_finish_or_double' };
+      case 'human_jail':
+        return { mode: 'human_land_then_end' };
+      case 'ai_street':
+        return { mode: 'ai_post_land', wantsAnotherStreetRoll: !!landingPayCtx.wantsDouble };
+      case 'ai_jail':
+        return { mode: 'ai_jail_after_land' };
+      default:
+        return { mode: 'human_finish_or_double' };
+    }
+  }
+
+  function aiTrySellOne(playerIdx) {
+    const owner = PLAYERS[playerIdx];
+    const props = BOARD.map((_, idx) => idx).filter((idx) =>
+      canSellHere(owner, idx, state.ownership, state.buildings),
+    );
+    if (props.length === 0) return false;
+    const pick = props[Math.floor(Math.random() * props.length)];
+    return sellOneBuilding(owner, pick);
+  }
+
+  function aiTryMortgageOne(playerIdx) {
+    const candidates = BOARD.map((_, idx) => idx).filter((idx) => canMortgage(playerIdx, idx));
+    if (candidates.length === 0) return false;
+    candidates.sort((a, b) => mortgageValueFor(a) - mortgageValueFor(b));
+    return applyMortgage(playerIdx, candidates[0]);
+  }
+
+  function aiLiquidateUntil(playerIdx, needCash) {
+    let guard = 0;
+    while (state.cash[playerIdx] < needCash && guard++ < 240) {
+      const before = state.cash[playerIdx];
+      if (aiTrySellOne(playerIdx)) continue;
+      if (aiTryMortgageOne(playerIdx)) continue;
+      if (state.cash[playerIdx] === before) break;
+    }
+  }
+
+  function executePaymentResume() {
+    const r = state.paymentResume;
+    state.paymentResume = null;
+    if (!r || state.winner != null) return;
+    if (r.mode === 'human_finish_or_double') {
+      humanFinishLandOrDoubleOrEnd();
+    } else if (r.mode === 'human_land_then_end') {
+      if (state.winner != null) return;
+      if (state.phase === 'player_buy') return;
+      endPlayerTurn();
+    } else if (r.mode === 'human_jail_fine_forced') {
+      const forced = r.forcedDice;
+      state.inJail[0] = null;
+      state.phase = 'player_resolving';
+      renderHud();
+      state.lastDiceTotal = forced;
+      els.diceEl.textContent = `Fine paid — moving ${forced}`;
+      animateDice();
+      movePlayer(0, forced, () => {
+        resolveLanding(
+          0,
+          () => {
+            if (state.winner != null) return;
+            if (state.phase === 'player_buy') return;
+            endPlayerTurn();
+          },
+          { tag: 'human_jail' },
+        );
+      });
+    } else if (r.mode === 'human_jail_fine_roll') {
+      state.inJail[0] = null;
+      state.phase = 'player_resolving';
+      renderHud();
+      humanJailExitThenResolve(() => {
+        endPlayerTurn();
+      });
+    } else if (r.mode === 'ai_post_land') {
+      if (state.winner != null) return;
+      maybeAiBuild();
+      if (r.wantsAnotherStreetRoll) {
+        renderPrompt('The Broker rolled doubles — going again…');
+        save();
+        renderAll();
+        setTimeout(runAiTurn, 750);
+      } else {
+        state.doublesRunAi = 0;
+        beginHumanTurn();
+        save();
+        renderAll();
+      }
+    } else if (r.mode === 'ai_jail_after_land') {
+      if (state.winner != null) return;
+      maybeAiBuild();
+      beginHumanTurn();
+      save();
+      renderAll();
+    } else if (r.mode === 'ai_jail_fine_then_move') {
+      if (state.winner != null) return;
+      state.inJail[1] = null;
+      const forced = r.forcedDice;
+      if (forced != null) {
+        state.lastDiceTotal = forced;
+        els.diceEl.textContent = `Fine paid — moving ${forced}`;
+        animateDice();
+        movePlayer(1, forced, () => {
+          resolveLanding(
+            1,
+            () => {
+              if (state.winner != null) return;
+              maybeAiBuild();
+              beginHumanTurn();
+              save();
+              renderAll();
+            },
+            { tag: 'ai_jail' },
+          );
+        });
+      } else {
+        const dice = rollDice();
+        const total = dice[0] + dice[1];
+        els.diceEl.textContent = `${dice[0]} + ${dice[1]} = ${total}`;
+        state.lastDiceTotal = total;
+        animateDice();
+        movePlayer(1, total, () => {
+          resolveLanding(
+            1,
+            () => {
+              if (state.winner != null) return;
+              maybeAiBuild();
+              beginHumanTurn();
+              save();
+              renderAll();
+            },
+            { tag: 'ai_jail' },
+          );
+        });
+      }
+    }
+  }
+
+  function applySettledPayment(playerIdx, amount, reason, silent, payeeIdx) {
     state.cash[playerIdx] -= amount;
     if (!silent) {
       log(`${PLAYER_LABEL[PLAYERS[playerIdx]]} paid ${formatMoney(amount)} (${reason}).`);
     }
-    if (state.cash[playerIdx] < 0) {
-      const balanceBefore = state.cash[playerIdx] + amount;
-      bankrupt(playerIdx, { amount, reason, balanceBefore });
-    } else {
-      save();
-      renderHud();
+    if (payeeIdx != null && payeeIdx !== playerIdx && amount > 0) {
+      state.cash[payeeIdx] += amount;
     }
+    state.paymentDue = null;
+    save();
+    updatePieces();
+    renderHud();
   }
 
-  function credit(playerIdx, amount, reason, silent) {
-    state.cash[playerIdx] += amount;
-    if (!silent) {
-      log(`${PLAYER_LABEL[PLAYERS[playerIdx]]} received ${formatMoney(amount)} (${reason}).`);
+  function settlePayment(playerIdx, amount, reason, silent, opts) {
+    const payeeIdx = opts?.payeeIdx ?? null;
+    const resume = opts?.resume ?? null;
+
+    if (amount <= 0) {
+      state.paymentResume = resume;
+      executePaymentResume();
+      return;
     }
+
+    if (state.cash[playerIdx] >= amount) {
+      state.paymentResume = resume;
+      applySettledPayment(playerIdx, amount, reason, silent, payeeIdx);
+      executePaymentResume();
+      return;
+    }
+
+    if (playerIdx === 1) {
+      aiLiquidateUntil(1, amount);
+      if (state.cash[playerIdx] >= amount) {
+        state.paymentResume = resume;
+        applySettledPayment(playerIdx, amount, reason, silent, payeeIdx);
+        executePaymentResume();
+        return;
+      }
+      const balanceBefore = state.cash[playerIdx];
+      bankrupt(playerIdx, { amount, reason, balanceBefore });
+      return;
+    }
+
+    state.paymentDue = {
+      amount,
+      reason,
+      silent,
+      payeeIdx,
+      payer: playerIdx,
+    };
+    state.paymentResume = resume;
+    state.phase = 'player_raise_cash';
+    const short = amount - state.cash[playerIdx];
+    renderPrompt(
+      `You owe ${formatMoney(amount)} (${reason}). Raise ${formatMoney(short)} more — mortgage listings or sell upgrades in your portfolio, then tap Pay.`,
+    );
     save();
-    renderHud();
+    renderAll();
+  }
+
+  function onPayDue() {
+    if (state.phase !== 'player_raise_cash' || state.winner != null || !state.paymentDue) return;
+    const d = state.paymentDue;
+    if (state.cash[0] < d.amount) return;
+    applySettledPayment(0, d.amount, d.reason, d.silent, d.payeeIdx);
+    executePaymentResume();
   }
 
   function logLandfall(playerIdx, idx) {
@@ -665,6 +994,14 @@
     }
 
     const rent = computeRent(idx, state.ownership, state.buildings);
+    if (state.mortgaged[idx]) {
+      if (playerIdx === 0) {
+        log(`${you} landed on ${sq.name} (the Broker owns this — mortgaged, no rent).`);
+      } else {
+        log(`${you} landed on ${sq.name} (you own this — listing mortgaged, no rent).`);
+      }
+      return;
+    }
     if (playerIdx === 0) {
       log(`${you} landed on ${sq.name} (the Broker owns this — paid ${formatMoney(rent)} rent).`);
     } else {
@@ -672,14 +1009,14 @@
     }
   }
 
-  function resolveLanding(playerIdx, cb) {
+  function resolveLanding(playerIdx, cb, landingPayCtx) {
     const idx = state.positions[playerIdx];
     const sq = BOARD[idx];
 
     if (sq.kind === 'tax') {
       logLandfall(playerIdx, idx);
-      charge(playerIdx, sq.tax, sq.name, true);
-      if (state.winner == null) cb?.();
+      const resume = paymentResumeFromLandingPay(landingPayCtx);
+      settlePayment(playerIdx, sq.tax, sq.name, true, { payeeIdx: null, resume });
       return;
     }
 
@@ -706,7 +1043,7 @@
         renderPrompt(
           affordable
             ? `${sq.name} — ${formatMoney(sq.price)}. Buy it?`
-            : `${sq.name} is ${formatMoney(sq.price)} — you have ${formatMoney(state.cash[0])} (${formatMoney(sq.price - state.cash[0])} short). Hit Pass.`,
+            : `${sq.name} is ${formatMoney(sq.price)} — you have ${formatMoney(state.cash[0])} (${formatMoney(sq.price - state.cash[0])} short). Raise cash in your portfolio (mortgage / sell upgrades), then Buy or Pass.`,
         );
         renderHud();
         return;
@@ -743,10 +1080,11 @@
     const ownerIdx = ownerKey === 'human' ? 0 : 1;
     const rent = computeRent(idx, state.ownership, state.buildings);
     logLandfall(playerIdx, idx);
-    charge(playerIdx, rent, `Rent on ${sq.name}`, true);
-    if (state.winner == null) credit(ownerIdx, rent, `Rent from ${sq.name}`, true);
-    updatePieces();
-    if (state.winner == null) cb?.();
+    const resume = paymentResumeFromLandingPay(landingPayCtx);
+    settlePayment(playerIdx, rent, `Rent on ${sq.name}`, true, {
+      payeeIdx: ownerIdx,
+      resume,
+    });
   }
 
   function maybeAiBuild() {
@@ -833,21 +1171,25 @@
         beginHumanTurn();
         return;
       }
-      resolveLanding(1, () => {
-        if (state.winner != null) return;
-        maybeAiBuild();
-        if (wantsAnotherStreetRoll) {
-          renderPrompt('The Broker rolled doubles — going again…');
+      resolveLanding(
+        1,
+        () => {
+          if (state.winner != null) return;
+          maybeAiBuild();
+          if (wantsAnotherStreetRoll) {
+            renderPrompt('The Broker rolled doubles — going again…');
+            save();
+            renderAll();
+            setTimeout(runAiTurn, 750);
+            return;
+          }
+          state.doublesRunAi = 0;
+          beginHumanTurn();
           save();
           renderAll();
-          setTimeout(runAiTurn, 750);
-          return;
-        }
-        state.doublesRunAi = 0;
-        beginHumanTurn();
-        save();
-        renderAll();
-      });
+        },
+        { tag: 'ai_street', wantsDouble: wantsAnotherStreetRoll },
+      );
     });
   }
 
@@ -926,40 +1268,29 @@
     state.lastDiceTotal = total;
     animateDice();
     movePlayer(0, total, () => {
-      resolveLanding(0, () => {
-        if (state.winner != null) return;
-        if (state.phase === 'player_buy') return;
-        done?.();
-      });
+      resolveLanding(
+        0,
+        () => {
+          if (state.winner != null) return;
+          if (state.phase === 'player_buy') return;
+          done?.();
+        },
+        { tag: 'human_jail' },
+      );
     });
   }
 
   function onJailPayFine() {
     if (state.phase !== 'player_jail' || state.winner != null) return;
-    if (state.cash[0] < JAIL_FINE) return;
     const inj = state.inJail[0];
     const forced = inj?.forcedExitDice;
-    charge(0, JAIL_FINE, 'Shuttle fine');
-    if (state.winner != null) return;
-    state.inJail[0] = null;
-    state.phase = 'player_resolving';
-    renderHud();
-    if (forced != null) {
-      state.lastDiceTotal = forced;
-      els.diceEl.textContent = `Fine paid — moving ${forced}`;
-      animateDice();
-      movePlayer(0, forced, () => {
-        resolveLanding(0, () => {
-          if (state.winner != null) return;
-          if (state.phase === 'player_buy') return;
-          endPlayerTurn();
-        });
-      });
-    } else {
-      humanJailExitThenResolve(() => {
-        endPlayerTurn();
-      });
-    }
+    settlePayment(0, JAIL_FINE, 'Shuttle fine', false, {
+      payeeIdx: null,
+      resume:
+        forced != null
+          ? { mode: 'human_jail_fine_forced', forcedDice: forced }
+          : { mode: 'human_jail_fine_roll' },
+    });
   }
 
   function onJailRollDoubles() {
@@ -977,11 +1308,15 @@
       log(`Doubles — off the shuttle (no extra roll).`);
       state.inJail[0] = null;
       movePlayer(0, total, () => {
-        resolveLanding(0, () => {
-          if (state.winner != null) return;
-          if (state.phase === 'player_buy') return;
-          endPlayerTurn();
-        });
+        resolveLanding(
+          0,
+          () => {
+            if (state.winner != null) return;
+            if (state.phase === 'player_buy') return;
+            endPlayerTurn();
+          },
+          { tag: 'human_jail' },
+        );
       });
     } else {
       inj.failedDoubles++;
@@ -1008,38 +1343,16 @@
       return;
     }
     const mustPay = inj.failedDoubles >= 3;
-    const payOk = state.cash[1] >= JAIL_FINE;
     const preferPay =
       mustPay ||
-      (payOk &&
+      (state.cash[1] >= JAIL_FINE &&
         (state.cash[1] >= JAIL_FINE * 3 || inj.failedDoubles >= 2 || Math.random() > 0.45));
 
-    if (preferPay && payOk) {
+    if (preferPay) {
       const forced = inj.forcedExitDice;
-      charge(1, JAIL_FINE, 'Shuttle fine');
-      if (state.winner != null) return;
-      state.inJail[1] = null;
-      let total;
-      if (forced != null) {
-        total = forced;
-        els.diceEl.textContent = `Fine paid — moving ${total}`;
-        state.lastDiceTotal = total;
-        animateDice();
-      } else {
-        const dice = rollDice();
-        total = dice[0] + dice[1];
-        els.diceEl.textContent = `${dice[0]} + ${dice[1]} = ${total}`;
-        state.lastDiceTotal = total;
-        animateDice();
-      }
-      movePlayer(1, total, () => {
-        resolveLanding(1, () => {
-          if (state.winner != null) return;
-          maybeAiBuild();
-          beginHumanTurn();
-          save();
-          renderAll();
-        });
+      settlePayment(1, JAIL_FINE, 'Shuttle fine', false, {
+        payeeIdx: null,
+        resume: { mode: 'ai_jail_fine_then_move', forcedDice: forced != null ? forced : null },
       });
       return;
     }
@@ -1053,13 +1366,17 @@
       log(`${PLAYER_LABEL.ai}: Doubles — off the shuttle.`);
       state.inJail[1] = null;
       movePlayer(1, total, () => {
-        resolveLanding(1, () => {
-          if (state.winner != null) return;
-          maybeAiBuild();
-          beginHumanTurn();
-          save();
-          renderAll();
-        });
+        resolveLanding(
+          1,
+          () => {
+            if (state.winner != null) return;
+            maybeAiBuild();
+            beginHumanTurn();
+            save();
+            renderAll();
+          },
+          { tag: 'ai_jail' },
+        );
       });
     } else {
       inj.failedDoubles++;
@@ -1075,7 +1392,7 @@
 
   function humanFinishLandOrDoubleOrEnd() {
     if (state.winner != null) return;
-    if (state.phase === 'player_buy') return;
+    if (state.phase === 'player_buy' || state.phase === 'player_raise_cash') return;
     if (state.pendingDoublesExtraRoll) {
       state.phase = 'player_roll';
       renderPrompt('Doubles — roll again.');
@@ -1124,9 +1441,13 @@
         endPlayerTurn();
         return;
       }
-      resolveLanding(0, () => {
-        humanFinishLandOrDoubleOrEnd();
-      });
+      resolveLanding(
+        0,
+        () => {
+          humanFinishLandOrDoubleOrEnd();
+        },
+        { tag: 'human_street' },
+      );
     });
   }
 
@@ -1329,11 +1650,12 @@
   function portfolioLineFor(idx) {
     const sq = BOARD[idx];
     const rawName = sq.name.replace(/\n/g, ' ');
+    const m = state.mortgaged[idx] ? ' · M' : '';
+    if (sq.kind !== 'property') return rawName + m;
     const b = state.buildings[idx] || { houses: 0, hotel: false };
-    if (sq.kind !== 'property') return rawName;
-    if (b.hotel) return `${rawName} · hotel`;
-    if (b.houses > 0) return `${rawName} · ${b.houses} house${b.houses === 1 ? '' : 's'}`;
-    return rawName;
+    if (b.hotel) return `${rawName} · hotel${m}`;
+    if (b.houses > 0) return `${rawName} · ${b.houses} house${b.houses === 1 ? '' : 's'}${m}`;
+    return rawName + m;
   }
 
   function schedulePortfolioScrollHints() {
@@ -1396,12 +1718,56 @@
         li.style.setProperty('--portfolio-accent', g.accent);
         const chips = document.createElement('div');
         chips.className = 'mono-portfolio-chips';
-        g.items.forEach(({ text, chipAccent }) => {
+        g.items.forEach(({ text, chipAccent, idx }) => {
+          const item = document.createElement('div');
+          item.className = 'mono-portfolio-item';
           const chip = document.createElement('span');
-          chip.className = 'mono-portfolio-chip';
+          chip.className = `mono-portfolio-chip${state.mortgaged[idx] ? ' mono-portfolio-chip--mortgaged' : ''}`;
           chip.style.setProperty('--chip-accent', chipAccent);
           chip.textContent = text;
-          chips.appendChild(chip);
+          item.appendChild(chip);
+          if (key === 'human') {
+            const pausedRow = els.continueWrap && !els.continueWrap.hidden;
+            const liquidity = humanPortfolioLiquidityAllowed() && !pausedRow;
+            const actions = document.createElement('div');
+            actions.className = 'mono-portfolio-actions';
+            if (liquidity && canSellHere('human', idx, state.ownership, state.buildings)) {
+              const sb = document.createElement('button');
+              sb.type = 'button';
+              sb.className = 'mono-mini-btn mono-portfolio-act mono-portfolio-act--sell';
+              sb.textContent = 'Sell';
+              sb.addEventListener('click', () => {
+                if (!humanPortfolioLiquidityAllowed() || state.winner != null) return;
+                sellOneBuilding('human', idx);
+              });
+              actions.appendChild(sb);
+            }
+            if (liquidity && canMortgage(0, idx)) {
+              const mb = document.createElement('button');
+              mb.type = 'button';
+              mb.className = 'mono-mini-btn mono-portfolio-act mono-portfolio-act--mortgage';
+              mb.textContent = `Mortgage +${formatMoney(mortgageValueFor(idx))}`;
+              mb.addEventListener('click', () => {
+                if (!humanPortfolioLiquidityAllowed() || state.winner != null) return;
+                applyMortgage(0, idx);
+              });
+              actions.appendChild(mb);
+            }
+            if (humanUnmortgageAllowed() && state.mortgaged[idx]) {
+              const ub = document.createElement('button');
+              ub.type = 'button';
+              ub.className = 'mono-mini-btn mono-portfolio-act mono-portfolio-act--unmortgage';
+              ub.textContent = `Unmortgage ${formatMoney(unmortgageCostFor(idx))}`;
+              ub.disabled = pausedRow || !canUnmortgage(0, idx);
+              ub.addEventListener('click', () => {
+                if (!humanUnmortgageAllowed() || state.winner != null) return;
+                applyUnmortgage(0, idx);
+              });
+              actions.appendChild(ub);
+            }
+            if (actions.childNodes.length) item.appendChild(actions);
+          }
+          chips.appendChild(item);
         });
         li.appendChild(chips);
         ul.appendChild(li);
@@ -1433,7 +1799,8 @@
       state.winner != null ||
       ph === 'player_buy' ||
       ph === 'player_jail' ||
-      ph === 'player_resolving';
+      ph === 'player_resolving' ||
+      ph === 'player_raise_cash';
     els.rollBtn.hidden = hideRoll;
 
     const rollInteractive = ph === 'player_roll';
@@ -1441,6 +1808,14 @@
 
     const showBuyPass = !paused && ph === 'player_buy' && state.winner == null;
     const showJail = !paused && ph === 'player_jail' && state.winner == null;
+    const showPayDue = !paused && ph === 'player_raise_cash' && state.winner == null && state.paymentDue;
+
+    els.payDueBtn.hidden = !showPayDue;
+    if (showPayDue && state.paymentDue) {
+      const due = state.paymentDue.amount;
+      els.payDueBtn.textContent = `Pay ${formatMoney(due)}`;
+      els.payDueBtn.disabled = state.cash[0] < due;
+    }
 
     els.buyBtn.hidden = !showBuyPass;
     els.passBtn.hidden = !showBuyPass;
@@ -1470,7 +1845,7 @@
       const inj = state.inJail[0];
       const mustPayDoubles = inj && inj.failedDoubles >= 3;
       els.jailRollBtn.hidden = mustPayDoubles;
-      els.jailPayBtn.disabled = paused || state.cash[0] < JAIL_FINE;
+      els.jailPayBtn.disabled = paused || mustPayDoubles || !inj;
       els.jailRollBtn.disabled = paused || mustPayDoubles || !inj;
     }
 
@@ -1550,6 +1925,7 @@
     cells.forEach((cell, idx) => {
       cell.classList.toggle('mono-cell--owned-human', state.ownership[idx] === 'human');
       cell.classList.toggle('mono-cell--owned-ai', state.ownership[idx] === 'ai');
+      cell.classList.toggle('mono-cell--mortgaged', !!state.mortgaged[idx]);
       const b = state.buildings[idx];
       let hb = cell.querySelector('.mono-house-badge');
       if (!hb) {
@@ -1730,6 +2106,7 @@
           <button type="button" class="cta-btn mono-action-btn" id="monoRoll">Roll</button>
           <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoBuy">Buy</button>
           <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoPass">Pass</button>
+          <button type="button" class="cta-btn mono-action-btn" id="monoPayDue" hidden>Pay</button>
         </div>
         <div class="mono-actions-jail" id="monoJailActions" hidden>
           <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailPay">Pay fine</button>
@@ -1758,6 +2135,7 @@
     els.rollBtn = center.querySelector('#monoRoll');
     els.buyBtn = center.querySelector('#monoBuy');
     els.passBtn = center.querySelector('#monoPass');
+    els.payDueBtn = center.querySelector('#monoPayDue');
     els.logEl = center.querySelector('#monoLog');
     els.cashHuman = center.querySelector('#monoCashHuman');
     els.cashAi = center.querySelector('#monoCashAi');
@@ -1777,6 +2155,7 @@
     els.rollBtn.addEventListener('click', onRoll);
     els.buyBtn.addEventListener('click', onBuy);
     els.passBtn.addEventListener('click', onPass);
+    els.payDueBtn.addEventListener('click', onPayDue);
     els.jailPayBtn.addEventListener('click', onJailPayFine);
     els.jailRollBtn.addEventListener('click', onJailRollDoubles);
     center.querySelector('#monoResetBtn').addEventListener('click', () => {

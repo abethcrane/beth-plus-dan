@@ -1168,6 +1168,35 @@ header {
   box-shadow: inset 2px 0 0 0 var(--chip-accent, rgba(255, 255, 255, 0.15));
 }
 
+.mono-portfolio-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.mono-portfolio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.mono-portfolio-actions .mono-mini-btn {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.mono-portfolio-chip--mortgaged {
+  opacity: 0.82;
+}
+
+.mono-cell--mortgaged.mono-cell--property .mono-strip,
+.mono-cell--mortgaged.mono-cell--transit,
+.mono-cell--mortgaged.mono-cell--utility {
+  filter: grayscale(0.35) brightness(0.92);
+}
+
 .mono-prompt {
   font-family: var(--handwriting);
   font-size: clamp(0.95rem, 2.8vw, 1.15rem);
