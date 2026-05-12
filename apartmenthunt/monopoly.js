@@ -1,56 +1,56 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v5';
-  const STARTING_CASH = 50000;
-  const GO_BONUS = 2000;
+  const STORAGE_KEY = 'bushwick-monopoly-state-v6';
+  const STARTING_CASH = 37500;
+  const GO_BONUS = 5000;
   const PLAYERS = ['human', 'ai'];
   const PLAYER_LABEL = { human: 'You', ai: 'The Broker' };
 
   /** @typedef {'corner'|'property'|'tax'|'transit'|'nice'} SquareKind */
 
-  /** Light-blue tier: 60th / Forest / 69th (73rd Pl, Fresh Pond, Metropolitan omitted). Six “nice” squares — no money/cards. Taxes: south Broker $3000, west National Gas $50, north Con Ed $200, east Application $100. */
+  /** Prices & base rents follow UK Monopoly × 25 (£→$). Taxes kept deliberately cheap vs starting cash. Starting cash £1500→$37,500; GO £200→$5,000. */
 
   /** @type {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string }[]} */
   const BOARD = [
     { kind: 'corner', name: 'GO — Pay Day', side: 'sw' },
-    { kind: 'property', name: 'Broadway', price: 2000, baseRent: 200, group: 'brown', side: 's' },
+    { kind: 'property', name: 'Broadway', price: 1500, baseRent: 50, group: 'brown', side: 's' },
     { kind: 'nice', name: 'Washington Irving\nLibrary', side: 's' },
-    { kind: 'property', name: 'Myrtle Ave', price: 2500, baseRent: 250, group: 'brown', side: 's' },
-    { kind: 'tax', name: 'Broker Fee', tax: 3000, side: 's' },
-    { kind: 'transit', name: 'M Train', price: 2000, baseRent: 250, group: 'transit', side: 's', stripColor: '#ff6319' },
-    { kind: 'property', name: '60th Pl', price: 3000, baseRent: 300, group: 'light_blue', side: 's' },
+    { kind: 'property', name: 'Myrtle Ave', price: 1500, baseRent: 100, group: 'brown', side: 's' },
+    { kind: 'tax', name: 'Broker Fee', tax: 1500, side: 's' },
+    { kind: 'transit', name: 'M Train', price: 5000, baseRent: 0, group: 'transit', side: 's', stripColor: '#ff6319' },
+    { kind: 'property', name: '60th Pl', price: 2500, baseRent: 150, group: 'light_blue', side: 's' },
     { kind: 'nice', name: 'Mixtape', side: 's' },
-    { kind: 'property', name: 'Forest Ave', price: 3200, baseRent: 320, group: 'light_blue', side: 's' },
-    { kind: 'property', name: '69th Ave', price: 3500, baseRent: 350, group: 'light_blue', side: 's' },
-    { kind: 'corner', name: 'Just walking past\n(the shuttle)', side: 'nw' },
-    { kind: 'property', name: 'Morgan Ave', price: 4000, baseRent: 400, group: 'pink', side: 'w' },
-    { kind: 'tax', name: 'National Gas', tax: 50, side: 'w' },
-    { kind: 'property', name: 'Wyckoff Ave', price: 4400, baseRent: 440, group: 'pink', side: 'w' },
-    { kind: 'property', name: 'Seneca Ave', price: 4800, baseRent: 480, group: 'pink', side: 'w' },
-    { kind: 'transit', name: 'L Train', price: 2000, baseRent: 250, group: 'transit', side: 'w', stripColor: '#a7a9ac' },
-    { kind: 'property', name: 'Gates Ave', price: 5200, baseRent: 520, group: 'orange', side: 'w' },
+    { kind: 'property', name: 'Forest Ave', price: 2500, baseRent: 150, group: 'light_blue', side: 's' },
+    { kind: 'property', name: '69th Ave', price: 3000, baseRent: 200, group: 'light_blue', side: 's' },
+    { kind: 'corner', name: 'Shuttle stop', side: 'nw' },
+    { kind: 'property', name: 'Morgan Ave', price: 3500, baseRent: 250, group: 'pink', side: 'w' },
+    { kind: 'tax', name: 'National Gas', tax: 1000, side: 'w' },
+    { kind: 'property', name: 'Wyckoff Ave', price: 3500, baseRent: 250, group: 'pink', side: 'w' },
+    { kind: 'property', name: 'Seneca Ave', price: 4000, baseRent: 300, group: 'pink', side: 'w' },
+    { kind: 'transit', name: 'L Train', price: 5000, baseRent: 0, group: 'transit', side: 'w', stripColor: '#a7a9ac' },
+    { kind: 'property', name: 'Gates Ave', price: 4500, baseRent: 350, group: 'orange', side: 'w' },
     { kind: 'nice', name: 'Ridgewood\nCommunity Garden', side: 'w' },
-    { kind: 'property', name: 'Halsey St', price: 5600, baseRent: 560, group: 'orange', side: 'w' },
-    { kind: 'property', name: 'Palmetto St', price: 6000, baseRent: 600, group: 'orange', side: 'w' },
+    { kind: 'property', name: 'Halsey St', price: 4500, baseRent: 350, group: 'orange', side: 'w' },
+    { kind: 'property', name: 'Palmetto St', price: 5000, baseRent: 400, group: 'orange', side: 'w' },
     { kind: 'corner', name: 'Maria Hernandez\nPark', side: 'nw' },
-    { kind: 'property', name: 'Greene Ave', price: 7000, baseRent: 700, group: 'red', side: 'n' },
+    { kind: 'property', name: 'Greene Ave', price: 5500, baseRent: 450, group: 'red', side: 'n' },
     { kind: 'nice', name: 'Ice Cream Window', side: 'n' },
-    { kind: 'property', name: 'Grove St', price: 7400, baseRent: 740, group: 'red', side: 'n' },
-    { kind: 'property', name: 'Evergreen Ave', price: 7800, baseRent: 780, group: 'red', side: 'n' },
-    { kind: 'transit', name: 'J / Z Train', price: 2000, baseRent: 250, group: 'transit', side: 'n', stripColor: '#996633' },
-    { kind: 'property', name: 'Hancock St', price: 8200, baseRent: 820, group: 'yellow', side: 'n' },
-    { kind: 'property', name: 'Covert St', price: 8800, baseRent: 880, group: 'yellow', side: 'n' },
-    { kind: 'tax', name: 'Con Ed Electric', tax: 200, side: 'n' },
-    { kind: 'property', name: 'Weirfeld St', price: 9400, baseRent: 940, group: 'yellow', side: 'n' },
+    { kind: 'property', name: 'Grove St', price: 5500, baseRent: 450, group: 'red', side: 'n' },
+    { kind: 'property', name: 'Evergreen Ave', price: 6000, baseRent: 500, group: 'red', side: 'n' },
+    { kind: 'transit', name: 'J / Z Train', price: 5000, baseRent: 0, group: 'transit', side: 'n', stripColor: '#996633' },
+    { kind: 'property', name: 'Hancock St', price: 6500, baseRent: 550, group: 'yellow', side: 'n' },
+    { kind: 'property', name: 'Covert St', price: 6500, baseRent: 550, group: 'yellow', side: 'n' },
+    { kind: 'tax', name: 'Con Ed Electric', tax: 1000, side: 'n' },
+    { kind: 'property', name: 'Weirfeld St', price: 7000, baseRent: 550, group: 'yellow', side: 'n' },
     { kind: 'corner', name: 'Trackwork —\ntake the bus', side: 'ne' },
-    { kind: 'property', name: 'Grandview Ave', price: 10000, baseRent: 1000, group: 'green', side: 'e' },
-    { kind: 'property', name: 'Onderdonk Ave', price: 10400, baseRent: 1040, group: 'green', side: 'e' },
+    { kind: 'property', name: 'Grandview Ave', price: 7500, baseRent: 650, group: 'green', side: 'e' },
+    { kind: 'property', name: 'Onderdonk Ave', price: 7500, baseRent: 650, group: 'green', side: 'e' },
     { kind: 'nice', name: 'Citibike Dock', side: 'e' },
-    { kind: 'property', name: 'Woodward Ave', price: 10800, baseRent: 1080, group: 'green', side: 'e' },
-    { kind: 'transit', name: 'G Train', price: 2000, baseRent: 250, group: 'transit', side: 'e', stripColor: '#6cbe45' },
+    { kind: 'property', name: 'Woodward Ave', price: 8000, baseRent: 700, group: 'green', side: 'e' },
+    { kind: 'transit', name: 'G Train', price: 5000, baseRent: 0, group: 'transit', side: 'e', stripColor: '#6cbe45' },
     { kind: 'nice', name: 'Panina', side: 'e' },
-    { kind: 'property', name: 'Cornelia St', price: 14000, baseRent: 1400, group: 'blue', side: 'e' },
-    { kind: 'tax', name: 'Application Fee', tax: 100, side: 'e' },
-    { kind: 'property', name: 'Catalpa Ave', price: 18000, baseRent: 1800, group: 'blue', side: 'e' },
+    { kind: 'property', name: 'Cornelia St', price: 8750, baseRent: 875, group: 'blue', side: 'e' },
+    { kind: 'tax', name: 'Application Fee', tax: 750, side: 'e' },
+    { kind: 'property', name: 'Catalpa Ave', price: 10000, baseRent: 1250, group: 'blue', side: 'e' },
   ];
 
   const GROUP_COLORS = {
@@ -131,7 +131,7 @@
 
     if (sq.kind === 'transit') {
       const n = countGroupOwned('transit', owner, ownership);
-      const table = [250, 500, 1000, 2000];
+      const table = [625, 1250, 2500, 5000];
       return table[Math.max(0, Math.min(n, 4) - 1)] ?? 250;
     }
 
@@ -639,24 +639,53 @@
       if (sq.kind === 'nice') {
         cell.classList.add('mono-cell--nice');
       }
-      const body = document.createElement('div');
-      body.className = 'mono-cell-body';
-      const name = document.createElement('span');
-      name.className = 'mono-name';
-      name.innerHTML = sq.name.replace(/\n/g, '<br/>');
-      body.appendChild(name);
-      if (sq.price != null) {
-        const price = document.createElement('span');
-        price.className = 'mono-price';
-        price.textContent = formatMoney(sq.price);
-        body.appendChild(price);
-      } else if (sq.tax != null) {
-        const price = document.createElement('span');
-        price.className = 'mono-price';
-        price.textContent = formatMoney(sq.tax);
-        body.appendChild(price);
+      if (idx === 20) {
+        cell.classList.add('mono-cell--nice');
       }
-      cell.appendChild(body);
+      if (sq.kind === 'tax') {
+        cell.classList.add('mono-cell--tax');
+      }
+
+      if (idx === 10) {
+        cell.classList.add('mono-cell--jail-corner');
+        const jailWrap = document.createElement('div');
+        jailWrap.className = 'mono-jail-layout';
+        const visitV = document.createElement('div');
+        visitV.className = 'mono-jail-visit mono-jail-visit--v';
+        visitV.textContent = 'walking';
+        const inner = document.createElement('div');
+        inner.className = 'mono-jail-inner';
+        const innerLabel = document.createElement('span');
+        innerLabel.className = 'mono-jail-inner-label';
+        innerLabel.textContent = 'on the bus';
+        inner.appendChild(innerLabel);
+        const visitH = document.createElement('div');
+        visitH.className = 'mono-jail-visit mono-jail-visit--h';
+        visitH.textContent = 'past';
+        jailWrap.appendChild(visitV);
+        jailWrap.appendChild(inner);
+        jailWrap.appendChild(visitH);
+        cell.appendChild(jailWrap);
+      } else {
+        const body = document.createElement('div');
+        body.className = 'mono-cell-body';
+        const name = document.createElement('span');
+        name.className = 'mono-name';
+        name.innerHTML = sq.name.replace(/\n/g, '<br/>');
+        body.appendChild(name);
+        if (sq.price != null) {
+          const price = document.createElement('span');
+          price.className = 'mono-price';
+          price.textContent = formatMoney(sq.price);
+          body.appendChild(price);
+        } else if (sq.tax != null) {
+          const price = document.createElement('span');
+          price.className = 'mono-price';
+          price.textContent = formatMoney(sq.tax);
+          body.appendChild(price);
+        }
+        cell.appendChild(body);
+      }
       const pieces = document.createElement('div');
       pieces.className = 'mono-cell-pieces';
       cell.appendChild(pieces);
