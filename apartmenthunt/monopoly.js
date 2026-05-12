@@ -109,6 +109,208 @@
     return `$${n.toLocaleString()}`;
   }
 
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function propertyScheduleRows(baseRent) {
+    const rows = [
+      ['Site rent', formatMoney(baseRent)],
+      ['Monopoly · undeveloped', formatMoney(Math.round(baseRent * 2))],
+    ];
+    for (let h = 1; h <= 4; h++) {
+      rows.push([
+        `With ${h} house${h === 1 ? '' : 's'}`,
+        formatMoney(Math.round(baseRent * rentMultiplier(h, false))),
+      ]);
+    }
+    rows.push(['With hotel', formatMoney(Math.round(baseRent * rentMultiplier(0, true)))]);
+    return rows;
+  }
+
+  function fillDeedContent(idx) {
+    const sq = BOARD[idx];
+    const stripHex = sq.stripColor || GROUP_COLORS[sq.group] || '#888';
+    const owner = state.ownership[idx];
+    const headerTitle =
+      sq.kind === 'property'
+        ? 'TITLE LISTING'
+        : sq.kind === 'transit'
+          ? 'TRANSIT DEED'
+          : sq.kind === 'utility'
+            ? 'UTILITY DEED'
+            : 'SPACE DETAILS';
+
+    let body = '';
+
+    if (sq.kind === 'property' && sq.price != null && sq.baseRent != null) {
+      const houseC = houseCostFor(idx);
+      const hotelC = hotelCostFor(idx);
+      const monoOwned = owner ? hasMonopoly(owner, sq.group, state.ownership) : false;
+      const rows = propertyScheduleRows(sq.baseRent);
+      const curRent =
+        owner && sq.kind === 'property'
+          ? computeRent(idx, state.ownership, state.buildings)
+          : null;
+      const b = state.buildings[idx] || { houses: 0, hotel: false };
+      const buildNote =
+        owner === 'human' && monoOwned
+          ? canBuildHere('human', idx, state.ownership, state.buildings)
+            ? 'You may upgrade here this turn (even building rule applies across the color group).'
+            : 'You own the monopoly — upgrades must stay even across this group.'
+          : '';
+
+      const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned';
+      body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(ownerLabel)}</dd>`;
+      if (owner) {
+        const built = b.hotel ? 'Hotel' : `${b.houses} house${b.houses === 1 ? '' : 's'}`;
+        body += `<dt>Built</dt><dd>${escapeHtml(built)}${monoOwned ? ' · monopoly' : ''}</dd>`;
+      }
+      body += '</dl>';
+
+      body += '<table class="mono-deed-table"><tbody>';
+      rows.forEach(([label, amt]) => {
+        body += `<tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(amt)}</td></tr>`;
+      });
+      body += '</tbody></table>';
+
+      if (curRent != null) {
+        body += `<p class="mono-deed-now"><strong>Rent if someone lands here now:</strong> ${formatMoney(curRent)}</p>`;
+      }
+
+      body += `<ul class="mono-deed-costs mono-deed-list"><li>Upgrade (each house): ${formatMoney(houseC)}</li><li>Hotel: ${formatMoney(hotelC)} plus 4 houses on this lot</li></ul>`;
+      if (buildNote) body += `<p class="mono-deed-note">${escapeHtml(buildNote)}</p>`;
+      body +=
+        '<p class="mono-deed-foot">Own every lot in this color — undeveloped rent doubles on those lots.</p>';
+    } else if (sq.kind === 'transit' && sq.price != null) {
+      const tiers = [625, 1250, 2500, 5000];
+      body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned')}</dd></dl>`;
+      body += '<table class="mono-deed-table"><tbody>';
+      tiers.forEach((rent, i) => {
+        body += `<tr><th scope="row">Rent if owner holds ${i + 1} line${i === 0 ? '' : 's'}</th><td>${formatMoney(rent)}</td></tr>`;
+      });
+      body += '</tbody></table>';
+      const cur =
+        owner === 'human' || owner === 'ai'
+          ? computeRent(idx, state.ownership, state.buildings)
+          : null;
+      const n = owner ? countGroupOwned('transit', owner, state.ownership) : null;
+      if (n != null) {
+        body += `<p class="mono-deed-note">This owner holds <strong>${n}</strong> transit square(s); landed rent uses the matching row.</p>`;
+      } else {
+        body +=
+          '<p class="mono-deed-note">Unowned — after purchase, rent depends on how many transit squares that same owner holds (see table).</p>';
+      }
+      if (cur != null) body += `<p class="mono-deed-now"><strong>Rent if landed now:</strong> ${formatMoney(cur)}</p>`;
+    } else if (sq.kind === 'utility' && sq.price != null) {
+      const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned';
+      body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(ownerLabel)}</dd></dl>`;
+      body +=
+        '<p class="mono-deed-note">Rent uses the dice total from the roll that lands on this tile: <strong>×4</strong> with one utility owned, <strong>×10</strong> with both.</p>';
+      if (owner) {
+        const sameOwner = countGroupOwned('utility', owner, state.ownership);
+        const mult = sameOwner >= 2 ? 10 : 4;
+        body += `<p class="mono-deed-note">This owner holds <strong>${sameOwner}</strong> / 2 utilities → multiplier <strong>×${mult}</strong>.</p>`;
+        const dice = state.lastDiceTotal ?? 7;
+        body += `<p class="mono-deed-now">Example using last dice total (${dice}): rent <strong>${formatMoney(dice * mult)}</strong>.</p>`;
+      } else {
+        body +=
+          '<p class="mono-deed-note">Unowned — once bought, one utility charges dice×4; owning both utilities upgrades every utility rent to dice×10.</p>';
+        const dice = state.lastDiceTotal ?? 7;
+        body += `<p class="mono-deed-now">Example dice ${dice}: would be <strong>${formatMoney(dice * 4)}</strong> with one utility or <strong>${formatMoney(dice * 10)}</strong> with both.</p>`;
+      }
+    } else if (sq.kind === 'tax' && sq.tax != null) {
+      body += `<p class="mono-deed-note">Landing here: pay <strong>${formatMoney(sq.tax)}</strong>.</p>`;
+    } else if (sq.kind === 'nice') {
+      body += `<p class="mono-deed-note">Community spot — no purchase. Draw-style rules don’t apply in this build; landing does nothing special.</p>`;
+    } else if (sq.kind === 'corner') {
+      if (idx === 0) {
+        body += `<p class="mono-deed-note">Pass or land here: collect <strong>${formatMoney(GO_BONUS)}</strong>.</p>`;
+      } else if (idx === 10) {
+        body +=
+          '<p class="mono-deed-note">Shuttle corner — “walking past” is just visiting; “on the bus” is serving trackwork time.</p>';
+      } else if (idx === 20) {
+        body +=
+          '<p class="mono-deed-note">Neighborhood corner — no listing fee when you land here.</p>';
+      } else if (idx === 30) {
+        body +=
+          '<p class="mono-deed-note">Trackwork — go to the shuttle corner and wait for doubles, pay the fine, or roll out after three tries.</p>';
+      }
+    }
+
+    if (!body.trim()) {
+      body = '<p class="mono-deed-note">No purchase info for this tile.</p>';
+    }
+
+    const nameHtml = escapeHtml(sq.name).replace(/\n/g, '<br/>');
+    els.deedContent.innerHTML = `
+      <div class="mono-deed-strip" style="background:${stripHex}"></div>
+      <div class="mono-deed-head">
+        <span class="mono-deed-label">${escapeHtml(headerTitle)}</span>
+        <h3 class="mono-deed-name">${nameHtml}</h3>
+      </div>
+      <div class="mono-deed-body">${body}</div>
+    `;
+    els.deedCard.setAttribute('aria-label', `${sq.name.replace(/\n/g, ' ')} listing card`);
+  }
+
+  function openDeedModal(idx) {
+    if (!els.deedBackdrop || idx < 0 || idx >= BOARD.length) return;
+    fillDeedContent(idx);
+    els.deedBackdrop.hidden = false;
+    els.deedBackdrop.setAttribute('aria-hidden', 'false');
+    els.deedClose.focus();
+  }
+
+  function closeDeedModal() {
+    if (!els.deedBackdrop) return;
+    els.deedBackdrop.hidden = true;
+    els.deedBackdrop.setAttribute('aria-hidden', 'true');
+  }
+
+  function wireDeedUI(boardRoot) {
+    const section = document.getElementById('game');
+    if (!section || els.deedBackdrop) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'monoDeedBackdrop';
+    backdrop.className = 'mono-deed-backdrop';
+    backdrop.hidden = true;
+    backdrop.setAttribute('aria-hidden', 'true');
+    backdrop.innerHTML = `
+      <div class="mono-deed-card" role="dialog" aria-modal="true" tabindex="-1">
+        <button type="button" class="mono-deed-close" aria-label="Close listing card">&times;</button>
+        <div id="monoDeedContent" class="mono-deed-content"></div>
+      </div>`;
+    section.appendChild(backdrop);
+
+    els.deedBackdrop = backdrop;
+    els.deedCard = backdrop.querySelector('.mono-deed-card');
+    els.deedContent = backdrop.querySelector('#monoDeedContent');
+    els.deedClose = backdrop.querySelector('.mono-deed-close');
+
+    els.deedClose.addEventListener('click', closeDeedModal);
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeDeedModal();
+    });
+
+    boardRoot.addEventListener('click', (e) => {
+      const cell = e.target.closest('[data-board-idx]');
+      if (!cell || !boardRoot.contains(cell)) return;
+      openDeedModal(Number(cell.dataset.boardIdx));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (!els.deedBackdrop || els.deedBackdrop.hidden) return;
+      closeDeedModal();
+    });
+  }
+
   function houseCostFor(idx) {
     const sq = BOARD[idx];
     if (sq.kind !== 'property') return 0;
@@ -1097,7 +1299,8 @@
     BOARD.forEach((sq, idx) => {
       const { row, col } = cellGridPos(idx);
       const cell = document.createElement('div');
-      cell.className = `mono-cell mono-cell--${sq.side}`;
+      cell.className = `mono-cell mono-cell--${sq.side} mono-cell--deed`;
+      cell.dataset.boardIdx = String(idx);
       if (idx === 0) {
         cell.classList.add('mono-cell--payday');
       }
@@ -1269,6 +1472,8 @@
       log('New game.');
       renderAll();
     });
+
+    wireDeedUI(root);
   }
 
   function boot() {
