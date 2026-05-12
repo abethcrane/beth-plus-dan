@@ -302,6 +302,17 @@ header {
 /* MONOPOLY */
 .monopoly-section {
   max-width: 920px;
+  overflow-x: hidden;
+}
+
+.mono-scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mono-scrollbar-none::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .mono-subtitle {
@@ -317,6 +328,7 @@ header {
 .mono-board {
   position: relative;
   display: grid;
+  overflow: hidden;
   grid-template-columns: repeat(11, 1fr);
   grid-template-rows: repeat(11, 1fr);
   gap: 4px;
@@ -715,6 +727,8 @@ header {
   max-height: min(78vh, 560px);
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   border-radius: 11px;
   border: 3px solid #252422;
   background: linear-gradient(165deg, #fdfaf4 0%, #ebe2cf 100%);
@@ -722,7 +736,11 @@ header {
   box-shadow:
     0 12px 32px rgba(0, 0, 0, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  overflow: hidden;
+}
+
+.mono-deed-tile::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .mono-deed-tile-close {
@@ -866,7 +884,8 @@ header {
   align-items: stretch;
   gap: 0.5rem;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: visible;
   position: relative;
 }
 
@@ -908,15 +927,63 @@ header {
 .mono-cash-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  font-size: 0.75rem;
+  gap: 0.65rem 1rem;
+  align-items: start;
+  width: 100%;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.mono-cash-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mono-cash-col--human {
+  justify-self: start;
+  text-align: left;
+}
+
+.mono-cash-col--ai {
+  justify-self: end;
+  text-align: right;
+}
+
+.mono-cash-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
 .mono-cash-grid strong {
   display: block;
   color: var(--text);
-  font-size: 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.mono-portfolio {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  font-size: 0.58rem;
+  line-height: 1.3;
+  color: var(--text-muted);
+  max-height: 5.25rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  word-break: break-word;
+}
+
+.mono-cash-col--ai .mono-portfolio {
+  text-align: right;
+}
+
+.mono-portfolio-empty {
+  opacity: 0.65;
+  font-style: italic;
 }
 
 .mono-prompt {
@@ -1018,8 +1085,9 @@ header {
   font-size: 0.62rem;
   color: var(--text-muted);
   max-height: 6.5rem;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 2px;
   line-height: 1.35;
 }
 

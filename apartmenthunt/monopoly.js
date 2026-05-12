@@ -1133,6 +1133,52 @@
     els.promptEl.textContent = text;
   }
 
+  function portfolioIndicesFor(ownerKey) {
+    const out = [];
+    BOARD.forEach((sq, idx) => {
+      if (state.ownership[idx] !== ownerKey) return;
+      if (sq.kind === 'property' || sq.kind === 'transit' || sq.kind === 'utility') out.push(idx);
+    });
+    out.sort((a, b) =>
+      BOARD[a].name.localeCompare(BOARD[b].name, undefined, { sensitivity: 'base' }),
+    );
+    return out;
+  }
+
+  function portfolioLineFor(idx) {
+    const sq = BOARD[idx];
+    const rawName = sq.name.replace(/\n/g, ' ');
+    const b = state.buildings[idx] || { houses: 0, hotel: false };
+    if (sq.kind !== 'property') return rawName;
+    if (b.hotel) return `${rawName} · hotel`;
+    if (b.houses > 0) return `${rawName} · ${b.houses} house${b.houses === 1 ? '' : 's'}`;
+    return rawName;
+  }
+
+  function renderPortfolios() {
+    if (!els.portfolioHuman || !els.portfolioAi) return;
+    const cols = [
+      { ul: els.portfolioHuman, key: 'human' },
+      { ul: els.portfolioAi, key: 'ai' },
+    ];
+    cols.forEach(({ ul, key }) => {
+      ul.innerHTML = '';
+      const idxs = portfolioIndicesFor(key);
+      if (idxs.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'mono-portfolio-empty';
+        li.textContent = 'No listings yet';
+        ul.appendChild(li);
+        return;
+      }
+      idxs.forEach((idx) => {
+        const li = document.createElement('li');
+        li.textContent = portfolioLineFor(idx);
+        ul.appendChild(li);
+      });
+    });
+  }
+
   function renderLog() {
     els.logEl.innerHTML = '';
     state.history.slice(-12).reverse().forEach((line) => {
@@ -1145,6 +1191,7 @@
   function renderHud() {
     els.cashHuman.textContent = formatMoney(state.cash[0]);
     els.cashAi.textContent = formatMoney(state.cash[1]);
+    renderPortfolios();
     const paused = els.continueWrap && !els.continueWrap.hidden;
     const sq = BOARD[state.positions[0]];
     const ph = state.phase;
@@ -1418,8 +1465,16 @@
       </div>
       <div class="mono-dice" id="monoDice">🎲</div>
       <div class="mono-cash-grid">
-        <div><span>You</span><strong id="monoCashHuman">$0</strong></div>
-        <div><span>Broker</span><strong id="monoCashAi">$0</strong></div>
+        <div class="mono-cash-col mono-cash-col--human">
+          <span class="mono-cash-label">You</span>
+          <strong id="monoCashHuman">$0</strong>
+          <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioHuman" aria-label="Your listings"></ul>
+        </div>
+        <div class="mono-cash-col mono-cash-col--ai">
+          <span class="mono-cash-label">The Broker</span>
+          <strong id="monoCashAi">$0</strong>
+          <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioAi" aria-label="Broker listings"></ul>
+        </div>
       </div>
       <p class="mono-prompt" id="monoPrompt"></p>
       <div class="mono-actions">
@@ -1432,7 +1487,7 @@
         <button type="button" class="cta-btn mono-action-btn" id="monoJailRoll">Roll for doubles</button>
       </div>
       <div class="mono-build" id="monoBuildRow"></div>
-      <ul class="mono-log" id="monoLog"></ul>
+      <ul class="mono-log mono-scrollbar-none" id="monoLog"></ul>
       <div class="mono-continue" id="monoContinue" hidden>
         <p>Saved game found.</p>
         <button type="button" class="cta-btn" id="monoContinueBtn">Continue</button>
@@ -1453,6 +1508,8 @@
     els.logEl = center.querySelector('#monoLog');
     els.cashHuman = center.querySelector('#monoCashHuman');
     els.cashAi = center.querySelector('#monoCashAi');
+    els.portfolioHuman = center.querySelector('#monoPortfolioHuman');
+    els.portfolioAi = center.querySelector('#monoPortfolioAi');
     els.buildRow = center.querySelector('#monoBuildRow');
     els.continueWrap = center.querySelector('#monoContinue');
     els.gameOverEl = center.querySelector('#monoGameOver');
