@@ -525,6 +525,7 @@
   let cells = [];
   let els = {};
   let portfolioScrollRaf = null;
+  let monoFooterDockBound = false;
   /** @type {number[]} Board indices with listing cards open below the board (order preserved). */
   let deedOpenOrder = [];
 
@@ -1199,6 +1200,69 @@
     els.promptEl.textContent = text;
   }
 
+  /** Accent color for HUD “On: …” line (matches board group / tile semantics). */
+  function squareHudAccent(idx) {
+    const sq = BOARD[idx];
+    if (sq.stripColor) return sq.stripColor;
+    if (sq.kind === 'property' && sq.group && GROUP_COLORS[sq.group]) return GROUP_COLORS[sq.group];
+    if (sq.kind === 'transit') return sq.stripColor || GROUP_COLORS.transit;
+    if (sq.kind === 'utility') return sq.tileColor || GROUP_COLORS.utility;
+    if (sq.kind === 'tax') return '#efa9a2';
+    if (idx === 0) return '#86efac';
+    if (idx === TRACKWORK_INDEX) return '#f0b891';
+    if (idx === JAIL_INDEX) return '#ec7c34';
+    if (sq.kind === 'nice') return '#bfe4a8';
+    return '#d4c4a8';
+  }
+
+  /** Renders “On:” HUD with the place name tinted to match its board color. */
+  function renderHumanCurrentSquareHud() {
+    const el = els.currentSquareEl;
+    if (!el) return;
+    const idx = state.positions[0];
+    const sq = BOARD[idx];
+    const name = sq.name.replace(/\n/g, ' ');
+    const accent = squareHudAccent(idx);
+    let suffix = '';
+    if (sq.price != null) suffix = ` · ${formatMoney(sq.price)}`;
+    else if (sq.tax != null) suffix = ` · ${formatMoney(sq.tax)}`;
+    if (idx === JAIL_INDEX) {
+      suffix += state.inJail[0] ? ' · on the bus' : ' · just visiting';
+    }
+    el.innerHTML = `On: <span class="mono-current-square-name" style="color: ${escapeHtml(accent)}">${escapeHtml(name)}</span>${escapeHtml(suffix)}`;
+  }
+
+  function syncMonoFooterDock() {
+    if (!els.centerFooter || !els.boardWrap || !els.centerEl || !els.continueWrap || !els.gameOverEl) return;
+    const dock = window.matchMedia('(max-width: 640px)').matches;
+    if (dock) {
+      els.boardWrap.classList.add('mono-board-wrap--footer-docked');
+      els.centerFooter.classList.add('mono-center-footer--below-board');
+      const tray = els.deedTray;
+      if (tray?.parentNode === els.boardWrap) {
+        els.boardWrap.insertBefore(els.centerFooter, tray);
+      } else {
+        els.boardWrap.appendChild(els.centerFooter);
+      }
+      els.boardWrap.appendChild(els.continueWrap);
+      els.boardWrap.appendChild(els.gameOverEl);
+    } else {
+      els.boardWrap.classList.remove('mono-board-wrap--footer-docked');
+      els.centerFooter.classList.remove('mono-center-footer--below-board');
+      els.centerEl.appendChild(els.centerFooter);
+      els.centerEl.appendChild(els.continueWrap);
+      els.centerEl.appendChild(els.gameOverEl);
+    }
+  }
+
+  function bindMonoFooterDock() {
+    if (!monoFooterDockBound) {
+      monoFooterDockBound = true;
+      window.matchMedia('(max-width: 640px)').addEventListener('change', () => syncMonoFooterDock());
+    }
+    syncMonoFooterDock();
+  }
+
   function portfolioGroupKeyFor(idx) {
     const sq = BOARD[idx];
     if (sq.kind === 'property') return sq.group || '__misc';
@@ -1358,6 +1422,7 @@
   function renderHud() {
     els.cashHuman.textContent = formatMoney(state.cash[0]);
     els.cashAi.textContent = formatMoney(state.cash[1]);
+    renderHumanCurrentSquareHud();
     renderPortfolios();
     const paused = els.continueWrap && !els.continueWrap.hidden;
     const sq = BOARD[state.positions[0]];
@@ -1518,6 +1583,8 @@
     const root = document.getElementById('monoBoard');
     if (!root) return;
     els.boardRoot = root;
+    const wrap = root.parentElement?.classList.contains('mono-board-wrap') ? root.parentElement : null;
+    els.boardWrap = wrap || undefined;
     root.innerHTML = '';
     cells = Array(40).fill(null);
 
@@ -1621,6 +1688,7 @@
       cell.appendChild(pieces);
       cell.style.gridRow = String(row);
       cell.style.gridColumn = String(col);
+      cell.title = sq.name.replace(/\n/g, ' ');
       root.appendChild(cell);
       cells[idx] = cell;
     });
@@ -1656,6 +1724,7 @@
         </div>
       </div>
       <div class="mono-center-footer">
+        <p class="mono-current-square" id="monoCurrentSquare" aria-live="polite"></p>
         <p class="mono-prompt" id="monoPrompt"></p>
         <div class="mono-actions">
           <button type="button" class="cta-btn mono-action-btn" id="monoRoll">Roll</button>
@@ -1681,7 +1750,10 @@
       </div>
     `;
 
+    els.centerEl = center;
+    els.centerFooter = center.querySelector('.mono-center-footer');
     els.diceEl = center.querySelector('#monoDice');
+    els.currentSquareEl = center.querySelector('#monoCurrentSquare');
     els.promptEl = center.querySelector('#monoPrompt');
     els.rollBtn = center.querySelector('#monoRoll');
     els.buyBtn = center.querySelector('#monoBuy');
@@ -1734,6 +1806,7 @@
 
     wireDeedUI(root);
     bindPortfolioScrollUi();
+    bindMonoFooterDock();
     queueMicrotask(() => schedulePortfolioScrollHints());
   }
 

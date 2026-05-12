@@ -325,6 +325,16 @@ header {
   margin-right: auto;
 }
 
+.mono-board-wrap {
+  width: 100%;
+  max-width: min(760px, 94vw);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  position: relative;
+}
+
 .mono-board {
   position: relative;
   display: grid;
@@ -334,8 +344,6 @@ header {
   gap: 4px;
   aspect-ratio: 1;
   width: 100%;
-  max-width: min(760px, 94vw);
-  margin: 0 auto;
   padding: 8px;
   background: var(--card-bg);
   backdrop-filter: blur(12px);
@@ -353,7 +361,7 @@ header {
   background: rgba(22, 21, 16, 0.92);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: clamp(7px, 0.85vw, 11px);
+  font-size: clamp(8px, max(8px, 0.85vw), 11px);
   line-height: 1.15;
   overflow: hidden;
   display: flex;
@@ -887,8 +895,9 @@ header {
   gap: 0.45rem;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: visible;
+  overflow-y: auto;
   position: relative;
+  contain: layout;
 }
 
 .mono-center-head {
@@ -903,6 +912,7 @@ header {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  contain: layout;
 }
 
 .mono-center-footer {
@@ -911,6 +921,39 @@ header {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  position: relative;
+  z-index: 4;
+  padding-top: 0.35rem;
+  background: rgba(15, 14, 11, 0.97);
+  border-radius: 8px;
+  box-shadow: 0 -8px 18px rgba(15, 14, 11, 0.85);
+}
+
+.mono-center-footer.mono-center-footer--below-board {
+  margin-top: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 0.65rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+}
+
+.mono-current-square {
+  font-family: var(--heading-font);
+  font-size: clamp(0.72rem, 2.4vw, 0.88rem);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0 0 0.2rem;
+  line-height: 1.25;
+}
+
+.mono-current-square-name {
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
 }
 
 .mono-brand {
@@ -1130,7 +1173,13 @@ header {
   font-size: clamp(0.95rem, 2.8vw, 1.15rem);
   color: var(--warm-light);
   text-align: center;
-  min-height: 2.5rem;
+  min-height: 1.75rem;
+}
+
+@media (min-width: 641px) {
+  .mono-prompt {
+    min-height: 2.5rem;
+  }
 }
 
 .mono-actions {
@@ -1232,6 +1281,127 @@ header {
 
 .mono-log li {
   margin-bottom: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .mono-portfolio-shell {
+    max-height: 5rem;
+    flex: 0 1 auto;
+  }
+
+  .mono-action-btn {
+    min-height: 44px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .mono-board-wrap .mono-cell:not(.mono-cell--jail-corner) .mono-cell-body {
+    display: none;
+  }
+
+  .mono-board-wrap .mono-cell {
+    font-size: clamp(8px, 2.75vw, 11px);
+  }
+
+  /* Shuttle / jail: orange wedge only — no microcopy */
+  .mono-board-wrap .mono-cell--jail-corner .mono-jail-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    grid-template-areas: 'ji';
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    min-height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mono-board-wrap .mono-cell--jail-corner .mono-jail-visit,
+  .mono-board-wrap .mono-cell--jail-corner .mono-jail-inner-label {
+    display: none !important;
+  }
+
+  .mono-board-wrap .mono-cell--jail-corner .mono-jail-inner {
+    grid-area: ji;
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  .mono-board-wrap .mono-cell--jail-corner .mono-jail-layout::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    width: 58%;
+    height: 58%;
+    background: linear-gradient(
+      to bottom left,
+      rgba(236, 124, 52, 0.97) 0%,
+      rgba(236, 124, 52, 0.52) 48%,
+      transparent 52%
+    );
+    border-radius: 0 6px 0 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Tokens “on the bus” sit in the orange wedge (top-right). */
+  .mono-board-wrap .mono-cell--jail-corner .mono-jail-inner-pieces {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 5px 5px 0 0;
+    margin: 0;
+    min-height: 14px;
+    box-sizing: border-box;
+    max-width: 56%;
+  }
+
+  /* “Just visiting” — tokens stay outside the wedge (bottom-left of the cell). */
+  .mono-board-wrap .mono-cell--jail-corner > .mono-cell-pieces {
+    bottom: 4px;
+    left: 4px;
+    right: auto;
+    top: auto;
+    justify-content: flex-start;
+    width: auto;
+    max-width: 52%;
+    padding-right: 2px;
+  }
+
+  .mono-board-wrap .mono-cell--jail-corner .mono-jail-inner-pieces .mono-piece {
+    width: auto;
+    max-width: 20px;
+    flex-shrink: 0;
+  }
+}
+
+.mono-board-wrap > .mono-continue,
+.mono-board-wrap > .mono-gameover {
+  border-radius: 14px;
+  z-index: 12;
 }
 
 .mono-continue,
