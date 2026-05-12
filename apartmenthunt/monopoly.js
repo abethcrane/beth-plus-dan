@@ -1,54 +1,56 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v5';
   const STARTING_CASH = 50000;
   const GO_BONUS = 2000;
   const PLAYERS = ['human', 'ai'];
   const PLAYER_LABEL = { human: 'You', ai: 'The Broker' };
 
-  /** @typedef {'corner'|'property'|'tax'|'transit'|'utility'|'chance'|'community'} SquareKind */
+  /** @typedef {'corner'|'property'|'tax'|'transit'|'nice'} SquareKind */
 
-  /** @type {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string }[]} */
+  /** Light-blue tier: 60th / Forest / 69th (73rd Pl, Fresh Pond, Metropolitan omitted). Six “nice” squares — no money/cards. Taxes: south Broker $3000, west National Gas $50, north Con Ed $200, east Application $100. */
+
+  /** @type {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string }[]} */
   const BOARD = [
     { kind: 'corner', name: 'GO — Pay Day', side: 'sw' },
-    { kind: 'property', name: 'Studio on Moffat', price: 2000, baseRent: 200, group: 'brown', side: 's' },
-    { kind: 'community', name: 'Ridgewood Life', side: 's' },
-    { kind: 'property', name: 'Studio on Covert', price: 2500, baseRent: 250, group: 'brown', side: 's' },
-    { kind: 'tax', name: 'Broker Fee', tax: 2000, side: 's' },
-    { kind: 'transit', name: 'M Train', price: 2000, baseRent: 250, group: 'transit', side: 's' },
-    { kind: 'property', name: 'Studio on Himrod', price: 3000, baseRent: 300, group: 'light_blue', side: 's' },
-    { kind: 'chance', name: 'Bushwick Vibes', side: 's' },
-    { kind: 'property', name: 'Studio on Harman', price: 3200, baseRent: 320, group: 'light_blue', side: 's' },
-    { kind: 'property', name: 'Studio on Bleecker', price: 3500, baseRent: 350, group: 'light_blue', side: 's' },
-    { kind: 'corner', name: 'Just Visiting\n(the L)', side: 'nw' },
-    { kind: 'property', name: '1BR on Stanhope', price: 4000, baseRent: 400, group: 'pink', side: 'w' },
-    { kind: 'utility', name: 'Citibike Dock', price: 1500, baseRent: 0, group: 'utility', side: 'w' },
-    { kind: 'property', name: '1BR on Linden', price: 4400, baseRent: 440, group: 'pink', side: 'w' },
-    { kind: 'property', name: '1BR on Gates', price: 4800, baseRent: 480, group: 'pink', side: 'w' },
-    { kind: 'transit', name: 'L Train', price: 2000, baseRent: 250, group: 'transit', side: 'w' },
-    { kind: 'property', name: '1BR on Starr', price: 5200, baseRent: 520, group: 'orange', side: 'w' },
-    { kind: 'community', name: 'Ridgewood Life', side: 'w' },
-    { kind: 'property', name: '1BR on Troutman', price: 5600, baseRent: 560, group: 'orange', side: 'w' },
-    { kind: 'property', name: '1BR on Jefferson', price: 6000, baseRent: 600, group: 'orange', side: 'w' },
-    { kind: 'corner', name: 'Free Wi‑Fi', side: 'nw' },
-    { kind: 'property', name: '1.5BR on Palmetto', price: 7000, baseRent: 700, group: 'red', side: 'n' },
-    { kind: 'chance', name: 'Bushwick Vibes', side: 'n' },
-    { kind: 'property', name: '1.5BR on Cornelia', price: 7400, baseRent: 740, group: 'red', side: 'n' },
-    { kind: 'property', name: '1.5BR on Putnam', price: 7800, baseRent: 780, group: 'red', side: 'n' },
-    { kind: 'transit', name: 'J/Z Train', price: 2000, baseRent: 250, group: 'transit', side: 'n' },
-    { kind: 'property', name: '2BR on Wyckoff', price: 8200, baseRent: 820, group: 'yellow', side: 'n' },
-    { kind: 'property', name: '2BR on Irving', price: 8800, baseRent: 880, group: 'yellow', side: 'n' },
-    { kind: 'utility', name: 'Con Ed Bill', price: 1500, baseRent: 0, group: 'utility', side: 'n' },
-    { kind: 'property', name: '2BR on Knickerbocker', price: 9400, baseRent: 940, group: 'yellow', side: 'n' },
-    { kind: 'corner', name: 'Missed the\nShowing', side: 'ne' },
-    { kind: 'property', name: '2BR on Seneca', price: 10000, baseRent: 1000, group: 'green', side: 'e' },
-    { kind: 'property', name: '2BR on Forest', price: 10400, baseRent: 1040, group: 'green', side: 'e' },
-    { kind: 'community', name: 'Ridgewood Life', side: 'e' },
-    { kind: 'property', name: '2BR on Onderdonk', price: 10800, baseRent: 1080, group: 'green', side: 'e' },
-    { kind: 'transit', name: 'G Train', price: 2000, baseRent: 250, group: 'transit', side: 'e' },
-    { kind: 'chance', name: 'Bushwick Vibes', side: 'e' },
-    { kind: 'property', name: '3BR on Catalpa', price: 14000, baseRent: 1400, group: 'blue', side: 'e' },
-    { kind: 'tax', name: 'Application Fee', tax: 1000, side: 'e' },
-    { kind: 'property', name: '3BR on Fresh Pond', price: 18000, baseRent: 1800, group: 'blue', side: 'e' },
+    { kind: 'property', name: 'Broadway', price: 2000, baseRent: 200, group: 'brown', side: 's' },
+    { kind: 'nice', name: 'Washington Irving\nLibrary', side: 's' },
+    { kind: 'property', name: 'Myrtle Ave', price: 2500, baseRent: 250, group: 'brown', side: 's' },
+    { kind: 'tax', name: 'Broker Fee', tax: 3000, side: 's' },
+    { kind: 'transit', name: 'M Train', price: 2000, baseRent: 250, group: 'transit', side: 's', stripColor: '#ff6319' },
+    { kind: 'property', name: '60th Pl', price: 3000, baseRent: 300, group: 'light_blue', side: 's' },
+    { kind: 'nice', name: 'Mixtape', side: 's' },
+    { kind: 'property', name: 'Forest Ave', price: 3200, baseRent: 320, group: 'light_blue', side: 's' },
+    { kind: 'property', name: '69th Ave', price: 3500, baseRent: 350, group: 'light_blue', side: 's' },
+    { kind: 'corner', name: 'Just walking past\n(the shuttle)', side: 'nw' },
+    { kind: 'property', name: 'Morgan Ave', price: 4000, baseRent: 400, group: 'pink', side: 'w' },
+    { kind: 'tax', name: 'National Gas', tax: 50, side: 'w' },
+    { kind: 'property', name: 'Wyckoff Ave', price: 4400, baseRent: 440, group: 'pink', side: 'w' },
+    { kind: 'property', name: 'Seneca Ave', price: 4800, baseRent: 480, group: 'pink', side: 'w' },
+    { kind: 'transit', name: 'L Train', price: 2000, baseRent: 250, group: 'transit', side: 'w', stripColor: '#a7a9ac' },
+    { kind: 'property', name: 'Gates Ave', price: 5200, baseRent: 520, group: 'orange', side: 'w' },
+    { kind: 'nice', name: 'Ridgewood\nCommunity Garden', side: 'w' },
+    { kind: 'property', name: 'Halsey St', price: 5600, baseRent: 560, group: 'orange', side: 'w' },
+    { kind: 'property', name: 'Palmetto St', price: 6000, baseRent: 600, group: 'orange', side: 'w' },
+    { kind: 'corner', name: 'Maria Hernandez\nPark', side: 'nw' },
+    { kind: 'property', name: 'Greene Ave', price: 7000, baseRent: 700, group: 'red', side: 'n' },
+    { kind: 'nice', name: 'Ice Cream Window', side: 'n' },
+    { kind: 'property', name: 'Grove St', price: 7400, baseRent: 740, group: 'red', side: 'n' },
+    { kind: 'property', name: 'Evergreen Ave', price: 7800, baseRent: 780, group: 'red', side: 'n' },
+    { kind: 'transit', name: 'J / Z Train', price: 2000, baseRent: 250, group: 'transit', side: 'n', stripColor: '#996633' },
+    { kind: 'property', name: 'Hancock St', price: 8200, baseRent: 820, group: 'yellow', side: 'n' },
+    { kind: 'property', name: 'Covert St', price: 8800, baseRent: 880, group: 'yellow', side: 'n' },
+    { kind: 'tax', name: 'Con Ed Electric', tax: 200, side: 'n' },
+    { kind: 'property', name: 'Weirfeld St', price: 9400, baseRent: 940, group: 'yellow', side: 'n' },
+    { kind: 'corner', name: 'Trackwork —\ntake the bus', side: 'ne' },
+    { kind: 'property', name: 'Grandview Ave', price: 10000, baseRent: 1000, group: 'green', side: 'e' },
+    { kind: 'property', name: 'Onderdonk Ave', price: 10400, baseRent: 1040, group: 'green', side: 'e' },
+    { kind: 'nice', name: 'Citibike Dock', side: 'e' },
+    { kind: 'property', name: 'Woodward Ave', price: 10800, baseRent: 1080, group: 'green', side: 'e' },
+    { kind: 'transit', name: 'G Train', price: 2000, baseRent: 250, group: 'transit', side: 'e', stripColor: '#6cbe45' },
+    { kind: 'nice', name: 'Panina', side: 'e' },
+    { kind: 'property', name: 'Cornelia St', price: 14000, baseRent: 1400, group: 'blue', side: 'e' },
+    { kind: 'tax', name: 'Application Fee', tax: 100, side: 'e' },
+    { kind: 'property', name: 'Catalpa Ave', price: 18000, baseRent: 1800, group: 'blue', side: 'e' },
   ];
 
   const GROUP_COLORS = {
@@ -61,7 +63,6 @@
     green: '#5a9e6e',
     blue: '#5c6eb8',
     transit: '#9a9a9a',
-    utility: '#b8b0a0',
   };
 
   function cellGridPos(i) {
@@ -126,17 +127,12 @@
   function computeRent(idx, ownership, buildings) {
     const sq = BOARD[idx];
     const owner = ownership[idx];
-    if (!owner || sq.kind === 'corner' || sq.kind === 'tax' || sq.kind === 'chance' || sq.kind === 'community') return 0;
+    if (!owner || sq.kind === 'corner' || sq.kind === 'tax' || sq.kind === 'nice') return 0;
 
     if (sq.kind === 'transit') {
       const n = countGroupOwned('transit', owner, ownership);
       const table = [250, 500, 1000, 2000];
       return table[Math.max(0, Math.min(n, 4) - 1)] ?? 250;
-    }
-
-    if (sq.kind === 'utility') {
-      const n = countGroupOwned('utility', owner, ownership);
-      return n === 1 ? 600 : n === 2 ? 1500 : 0;
     }
 
     const b = buildings[idx] || { houses: 0, hotel: false };
@@ -196,32 +192,6 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  /** @type {{ text: string, apply: (ctx: any) => void }[]} */
-  const CHANCE_DECK = [
-    { text: 'Street fair on your block! Collect $500.', apply: (c) => { c.state.cash[c.player] += 500; } },
-    { text: 'Pay application fees everywhere. Pay $300.', apply: (c) => { c.state.cash[c.player] -= 300; } },
-    { text: 'Found a deal on StreetEasy — collect $2,000.', apply: (c) => { c.state.cash[c.player] += 2000; } },
-    { text: 'Broker ghosted you. Lose a turn… just kidding. Pay $800.', apply: (c) => { c.state.cash[c.player] -= 800; } },
-    { text: 'Citibike gave you a free month. Collect $300.', apply: (c) => { c.state.cash[c.player] += 300; } },
-    { text: 'Pipe burst — emergency plumber. Pay $1,000.', apply: (c) => { c.state.cash[c.player] -= 1000; } },
-    { text: 'Landlord loves your references. Collect $1,200.', apply: (c) => { c.state.cash[c.player] += 1200; } },
-    { text: 'Advance to GO — collect $2,000.', apply: (c) => { c.moveToGo(); } },
-    { text: 'Go listen to the band at Mixtape (advance to Free Wi‑Fi).', apply: (c) => { c.teleport(20); } },
-    { text: 'Showing ran late — skip toward home (go back 3 spaces).', apply: (c) => { c.back(3); } },
-  ];
-
-  const COMMUNITY_DECK = [
-    { text: 'Community garden volunteer stipend. Collect $400.', apply: (c) => { c.state.cash[c.player] += 400; } },
-    { text: 'Washington Irving homework night — donate $200.', apply: (c) => { c.state.cash[c.player] -= 200; } },
-    { text: 'Panina special hits different. Pay $250.', apply: (c) => { c.state.cash[c.player] -= 250; } },
-    { text: 'Inheritance from your cousin in Ohio. Collect $1,500.', apply: (c) => { c.state.cash[c.player] += 1500; } },
-    { text: 'Sell gear on Craigslist. Collect $900.', apply: (c) => { c.state.cash[c.player] += 900; } },
-    { text: 'Tax refund (somehow). Collect $700.', apply: (c) => { c.state.cash[c.player] += 700; } },
-    { text: 'Venmo request from the group chat. Pay $450.', apply: (c) => { c.state.cash[c.player] -= 450; } },
-    { text: 'Advance to GO — collect $2,000.', apply: (c) => { c.moveToGo(); } },
-    { text: 'Ice cream window tip jar vibes. Collect $350.', apply: (c) => { c.state.cash[c.player] += 350; } },
-  ];
-
   function initialState() {
     return {
       positions: [0, 0],
@@ -229,10 +199,6 @@
       ownership: {},
       buildings: {},
       turn: 0,
-      chanceDeck: shuffle(CHANCE_DECK.map((_, i) => i)),
-      chancePtr: 0,
-      communityDeck: shuffle(COMMUNITY_DECK.map((_, i) => i)),
-      communityPtr: 0,
       phase: 'player_roll',
       history: [],
       winner: null,
@@ -297,60 +263,6 @@
     renderHud();
   }
 
-  function drawChance(playerIdx) {
-    const ptr = state.chancePtr % state.chanceDeck.length;
-    const cardIdx = state.chanceDeck[ptr];
-    state.chancePtr++;
-    const card = CHANCE_DECK[cardIdx];
-    log(`Chance: ${card.text}`);
-    const ctx = {
-      state,
-      player: playerIdx,
-      moveToGo: () => {
-        state.positions[playerIdx] = 0;
-        state.cash[playerIdx] += GO_BONUS;
-      },
-      teleport: (idx) => {
-        state.positions[playerIdx] = idx;
-      },
-      back: (n) => {
-        state.positions[playerIdx] = (state.positions[playerIdx] - n + 40) % 40;
-      },
-    };
-    card.apply(ctx);
-    if (state.cash[playerIdx] < 0) bankrupt(playerIdx);
-    save();
-    updatePieces();
-    renderHud();
-  }
-
-  function drawCommunity(playerIdx) {
-    const ptr = state.communityPtr % state.communityDeck.length;
-    const cardIdx = state.communityDeck[ptr];
-    state.communityPtr++;
-    const card = COMMUNITY_DECK[cardIdx];
-    log(`Community: ${card.text}`);
-    const ctx = {
-      state,
-      player: playerIdx,
-      moveToGo: () => {
-        state.positions[playerIdx] = 0;
-        state.cash[playerIdx] += GO_BONUS;
-      },
-      teleport: (idx) => {
-        state.positions[playerIdx] = idx;
-      },
-      back: (n) => {
-        state.positions[playerIdx] = (state.positions[playerIdx] - n + 40) % 40;
-      },
-    };
-    card.apply(ctx);
-    if (state.cash[playerIdx] < 0) bankrupt(playerIdx);
-    save();
-    updatePieces();
-    renderHud();
-  }
-
   function resolveLanding(playerIdx, cb) {
     const idx = state.positions[playerIdx];
     const sq = BOARD[idx];
@@ -361,14 +273,7 @@
       return;
     }
 
-    if (sq.kind === 'chance') {
-      drawChance(playerIdx);
-      if (state.winner == null) cb?.();
-      return;
-    }
-
-    if (sq.kind === 'community') {
-      drawCommunity(playerIdx);
+    if (sq.kind === 'nice') {
       if (state.winner == null) cb?.();
       return;
     }
@@ -529,7 +434,7 @@
 
   function teleportToJail(playerIdx) {
     state.positions[playerIdx] = 10;
-    log(`${PLAYER_LABEL[PLAYERS[playerIdx]]}: Missed the showing — hanging by the L.`);
+    log(`${PLAYER_LABEL[PLAYERS[playerIdx]]}: Trackwork — catch the shuttle bus.`);
     save();
     updatePieces();
   }
@@ -724,12 +629,15 @@
       const { row, col } = cellGridPos(idx);
       const cell = document.createElement('div');
       cell.className = `mono-cell mono-cell--${sq.side}`;
-      if (sq.kind === 'property' || sq.kind === 'transit' || sq.kind === 'utility') {
+      if (sq.kind === 'property' || sq.kind === 'transit') {
         cell.classList.add('mono-cell--property');
         const strip = document.createElement('div');
         strip.className = 'mono-strip';
-        strip.style.background = GROUP_COLORS[sq.group] || '#666';
+        strip.style.background = sq.stripColor || GROUP_COLORS[sq.group] || '#666';
         cell.appendChild(strip);
+      }
+      if (sq.kind === 'nice') {
+        cell.classList.add('mono-cell--nice');
       }
       const body = document.createElement('div');
       body.className = 'mono-cell-body';
