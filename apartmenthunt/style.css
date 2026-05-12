@@ -315,6 +315,7 @@ header {
 }
 
 .mono-board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(11, 1fr);
   grid-template-rows: repeat(11, 1fr);
@@ -344,21 +345,224 @@ header {
 }
 
 .mono-cell--property {
-  cursor: default;
+  cursor: pointer;
+}
+
+.mono-cell--deed:focus-visible {
+  outline: 2px solid var(--warm-light);
+  outline-offset: 2px;
+}
+
+.mono-cell--transit {
+  --transit-color: #888888;
+  background-image:
+    radial-gradient(
+      95% 78% at 50% 38%,
+      color-mix(in srgb, var(--transit-color) 34%, transparent) 0%,
+      transparent 68%
+    ),
+    linear-gradient(160deg, rgba(14, 13, 11, 0.93), rgba(22, 21, 17, 0.96));
+  background-color: rgba(16, 15, 13, 0.96);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--transit-color) 48%, transparent);
+}
+
+.mono-cell--utility {
+  --utility-color: #4299f0;
+  background-image:
+    radial-gradient(
+      92% 75% at 50% 40%,
+      color-mix(in srgb, var(--utility-color) 40%, transparent) 0%,
+      transparent 70%
+    ),
+    linear-gradient(158deg, rgba(14, 13, 11, 0.93), rgba(22, 21, 17, 0.96));
+  background-color: rgba(16, 15, 13, 0.96);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--utility-color) 52%, transparent);
+}
+
+.mono-cell--nice {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(138, 171, 110, 0.45);
+}
+
+.mono-cell--nice .mono-name {
+  color: var(--accent-light);
+}
+
+.mono-cell--tax {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(201, 76, 76, 0.5);
+}
+
+.mono-cell--tax .mono-name {
+  color: #efa9a2;
+}
+
+.mono-cell--tax .mono-price {
+  color: #f5cbc6;
+}
+
+.mono-cell--payday {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.55);
+}
+
+.mono-cell--payday .mono-name {
+  color: #86efac;
+}
+
+.mono-cell--payday .mono-price {
+  color: #ecfdf5;
+}
+
+.mono-cell--trackwork {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(236, 148, 88, 0.55);
+}
+
+.mono-cell--trackwork .mono-name {
+  color: #f5d4b8;
+}
+
+.mono-cell--jail-corner .mono-jail-layout {
+  flex: 1;
+  display: grid;
+  position: relative;
+  z-index: 2;
+  grid-template-columns: minmax(11px, 26%) 1fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    'jv ji'
+    'jh jh';
+  gap: 0;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+  padding: 2px;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid rgba(138, 171, 110, 0.38);
+  border-radius: 5px;
+}
+
+.mono-jail-visit {
+  font-family: var(--handwriting);
+  color: var(--accent-light);
+  background: transparent;
+}
+
+.mono-jail-visit--v {
+  grid-area: jv;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2px;
+  font-size: clamp(6px, 0.75vw, 10px);
+  line-height: 1;
+  text-align: center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  border-right: 1px solid rgba(138, 171, 110, 0.28);
+  border-radius: 4px 0 0 0;
+}
+
+.mono-jail-visit--h {
+  grid-area: jh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 4px 11px;
+  font-size: clamp(6px, 0.78vw, 10px);
+  line-height: 1.1;
+  text-align: center;
+  border-radius: 0 0 4px 4px;
+}
+
+.mono-jail-inner {
+  grid-area: ji;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  min-height: 0;
+  min-width: 0;
+  border: 2px solid rgba(236, 124, 52, 0.62);
+  border-radius: 0 4px 0 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 4px,
+      rgba(0, 0, 0, 0.18) 4px,
+      rgba(0, 0, 0, 0.18) 5px
+    ),
+    rgba(48, 26, 12, 0.94);
+}
+
+.mono-jail-inner-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--handwriting);
+  font-size: clamp(7px, 0.85vw, 11px);
+  color: #ffd4b8;
+  text-align: center;
+  line-height: 1.12;
+  padding: 3px;
+  min-height: 0;
+}
+
+.mono-jail-inner-pieces {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  min-height: 14px;
+  padding-bottom: 3px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.mono-jail-inner-pieces .mono-piece {
+  width: 28%;
+  max-width: 18px;
 }
 
 .mono-cell--owned-human {
-  box-shadow: inset 0 0 0 2px rgba(138, 171, 110, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(138, 171, 110, 0.55);
+}
+
+.mono-cell--owned-human::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(138, 171, 110, 0.24);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .mono-cell--owned-ai {
-  box-shadow: inset 0 0 0 2px rgba(212, 165, 103, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(212, 165, 103, 0.52);
+}
+
+.mono-cell--owned-ai::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(212, 165, 103, 0.22);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .mono-strip {
   flex-shrink: 0;
   height: 26%;
   min-height: 8px;
+  position: relative;
+  z-index: 2;
 }
 
 .mono-cell--w,
@@ -416,6 +620,8 @@ header {
   text-align: center;
   gap: 2px;
   min-height: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .mono-name {
@@ -482,6 +688,172 @@ header {
   padding: 1px 4px;
   line-height: 1.2;
   z-index: 3;
+}
+
+/* Listing cards docked below board (tap squares to pin / unpin; multiple tile in a row) */
+.mono-deed-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  max-width: min(760px, 94vw);
+  margin: 14px auto 0;
+  padding: 0 4px 12px;
+}
+
+.mono-deed-tray[hidden] {
+  display: none !important;
+}
+
+.mono-deed-tile {
+  position: relative;
+  flex: 1 1 248px;
+  max-width: 340px;
+  min-width: min(248px, 100%);
+  max-height: min(78vh, 560px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 11px;
+  border: 3px solid #252422;
+  background: linear-gradient(165deg, #fdfaf4 0%, #ebe2cf 100%);
+  color: #181614;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+}
+
+.mono-deed-tile-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.78);
+  color: #252422;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.mono-deed-tile-close:hover {
+  background: #fff;
+}
+
+.mono-deed-strip {
+  height: 52px;
+  border-radius: 8px 8px 0 0;
+}
+
+.mono-deed-head {
+  padding: 14px 44px 12px 14px;
+  text-align: center;
+}
+
+.mono-deed-label {
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #4a4743;
+}
+
+.mono-deed-name {
+  margin: 6px 0 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: clamp(0.95rem, 2.8vw, 1.15rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #141210;
+}
+
+.mono-deed-body {
+  padding: 4px 14px 18px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.mono-deed-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0 0 14px;
+  font-size: 0.78rem;
+}
+
+.mono-deed-meta dt {
+  margin: 0;
+  font-weight: 700;
+  color: #3d3a38;
+}
+
+.mono-deed-meta dd {
+  margin: 0;
+  text-align: right;
+}
+
+.mono-deed-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  margin-bottom: 12px;
+}
+
+.mono-deed-table th {
+  padding: 5px 8px 5px 0;
+  font-weight: 600;
+  text-align: left;
+  vertical-align: top;
+  color: #2c2926;
+}
+
+.mono-deed-table td {
+  padding: 5px 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mono-deed-table tr + tr th,
+.mono-deed-table tr + tr td {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.mono-deed-list {
+  margin: 10px 0 0;
+  padding-left: 1.1rem;
+}
+
+.mono-deed-note {
+  margin: 10px 0 0;
+  color: #4a453f;
+}
+
+.mono-deed-note:first-child {
+  margin-top: 0;
+}
+
+.mono-deed-now {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 0.8rem;
+}
+
+.mono-deed-foot {
+  margin: 14px 0 0;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: #555049;
 }
 
 .mono-center {
@@ -562,6 +934,24 @@ header {
   justify-content: center;
 }
 
+.mono-actions-jail {
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.mono-actions-jail:not([hidden]) {
+  display: flex;
+}
+
+.mono-actions-jail[hidden] {
+  display: none !important;
+}
+
+.mono-actions-jail button[hidden] {
+  display: none !important;
+}
+
 .mono-action-btn {
   margin-top: 0;
   padding: 0.55rem 1.1rem;
@@ -577,6 +967,23 @@ header {
 .mono-action-btn-outline:hover {
   background: var(--warm);
   color: #1a1a14;
+}
+
+.mono-actions .cta-btn:disabled,
+.mono-actions .cta-btn[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  filter: grayscale(0.35);
+}
+
+.mono-actions .cta-btn:disabled:hover {
+  transform: none;
+}
+
+.mono-prompt--blocked {
+  color: #f0b8b0;
 }
 
 .mono-build {
@@ -627,7 +1034,6 @@ header {
   background: rgba(15, 14, 11, 0.92);
   backdrop-filter: blur(8px);
   border-radius: 10px;
-  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -637,15 +1043,43 @@ header {
   z-index: 5;
 }
 
+.mono-continue:not([hidden]),
+.mono-gameover:not([hidden]) {
+  display: flex;
+}
+
+.mono-continue[hidden],
+.mono-gameover[hidden] {
+  display: none !important;
+}
+
 .mono-continue .cta-btn,
 .mono-gameover .cta-btn {
   margin-top: 0;
 }
 
-.mono-continue p,
-.mono-gameover p {
+.mono-continue p {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.mono-gameover p.mono-gameover-title {
+  color: var(--warm-light);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mono-gameover-detail {
+  max-width: 22rem;
+  line-height: 1.55;
+  font-size: 0.88rem;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.mono-gameover-detail[hidden] {
+  display: none !important;
 }
 
 /* 8-BALL */

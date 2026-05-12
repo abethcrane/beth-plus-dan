@@ -1,7 +1,11 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v11';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v12';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
+  /** Classic utility dice multipliers 4 / 10, scaled ×25 like rest of board economy → pay dice×100 or dice×250 */
+  const UTILITY_MONOPOLY_SCALE = 25;
+  const UTILITY_PER_DICE_ONE = 4 * UTILITY_MONOPOLY_SCALE;
+  const UTILITY_PER_DICE_BOTH = 10 * UTILITY_MONOPOLY_SCALE;
   const JAIL_INDEX = 10;
   const TRACKWORK_INDEX = 30;
   const JAIL_FINE = 1250;
@@ -10,7 +14,7 @@
 
   /** @typedef {'corner'|'property'|'tax'|'transit'|'utility'|'nice'} SquareKind */
 
-  /** Prices & base rents follow UK Monopoly × 25 (£→$). Utilities buyable like stations; rent = dice ×4 / ×10 with one / both owned. Taxes cheap vs cash. */
+  /** Prices & base rents follow UK Monopoly × 25 (£→$). Utilities: dice × (4×25) or × (10×25) per ownership count. Taxes cheap vs cash. */
 
   /** @type {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string, tileColor?: string }[]} */
   const BOARD = [
@@ -132,7 +136,7 @@
     return rows;
   }
 
-  function fillDeedContent(idx) {
+  function buildDeedCardMarkup(idx) {
     const sq = BOARD[idx];
     const stripHex = sq.stripColor || GROUP_COLORS[sq.group] || '#888';
     const owner = state.ownership[idx];
@@ -209,19 +213,17 @@
     } else if (sq.kind === 'utility' && sq.price != null) {
       const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned';
       body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(ownerLabel)}</dd></dl>`;
-      body +=
-        '<p class="mono-deed-note">Rent uses the dice total from the roll that lands on this tile: <strong>×4</strong> with one utility owned, <strong>×10</strong> with both.</p>';
+      body += `<p class="mono-deed-note">Classic utilities are dice × 4 or × 10; this board scales dollars by <strong>×${UTILITY_MONOPOLY_SCALE}</strong>, so rent is <strong>dice × ${UTILITY_PER_DICE_ONE}</strong> (one utility) or <strong>dice × ${UTILITY_PER_DICE_BOTH}</strong> (both).</p>`;
+      const dice = state.lastDiceTotal ?? 7;
       if (owner) {
         const sameOwner = countGroupOwned('utility', owner, state.ownership);
-        const mult = sameOwner >= 2 ? 10 : 4;
-        body += `<p class="mono-deed-note">This owner holds <strong>${sameOwner}</strong> / 2 utilities → multiplier <strong>×${mult}</strong>.</p>`;
-        const dice = state.lastDiceTotal ?? 7;
-        body += `<p class="mono-deed-now">Example using last dice total (${dice}): rent <strong>${formatMoney(dice * mult)}</strong>.</p>`;
+        const perDice = sameOwner >= 2 ? UTILITY_PER_DICE_BOTH : UTILITY_PER_DICE_ONE;
+        body += `<p class="mono-deed-note">This owner holds <strong>${sameOwner}</strong> / 2 utilities → rent <strong>dice × ${perDice}</strong>.</p>`;
+        body += `<p class="mono-deed-now">Last dice total (${dice}): rent <strong>${formatMoney(dice * perDice)}</strong>.</p>`;
       } else {
         body +=
-          '<p class="mono-deed-note">Unowned — once bought, one utility charges dice×4; owning both utilities upgrades every utility rent to dice×10.</p>';
-        const dice = state.lastDiceTotal ?? 7;
-        body += `<p class="mono-deed-now">Example dice ${dice}: would be <strong>${formatMoney(dice * 4)}</strong> with one utility or <strong>${formatMoney(dice * 10)}</strong> with both.</p>`;
+          '<p class="mono-deed-note">Unowned — rent depends on whether the owner has one or both utilities.</p>';
+        body += `<p class="mono-deed-now">Example dice ${dice}: <strong>${formatMoney(dice * UTILITY_PER_DICE_ONE)}</strong> with one utility or <strong>${formatMoney(dice * UTILITY_PER_DICE_BOTH)}</strong> with both.</p>`;
       }
     } else if (sq.kind === 'tax' && sq.tax != null) {
       body += `<p class="mono-deed-note">Landing here: pay <strong>${formatMoney(sq.tax)}</strong>.</p>`;
@@ -247,7 +249,9 @@
     }
 
     const nameHtml = escapeHtml(sq.name).replace(/\n/g, '<br/>');
-    els.deedContent.innerHTML = `
+    const dismissLabel = escapeHtml(sq.name.replace(/\n/g, ' '));
+    return `
+      <button type="button" class="mono-deed-tile-close" aria-label="Dismiss ${dismissLabel}">&times;</button>
       <div class="mono-deed-strip" style="background:${stripHex}"></div>
       <div class="mono-deed-head">
         <span class="mono-deed-label">${escapeHtml(headerTitle)}</span>
@@ -255,59 +259,70 @@
       </div>
       <div class="mono-deed-body">${body}</div>
     `;
-    els.deedCard.setAttribute('aria-label', `${sq.name.replace(/\n/g, ' ')} listing card`);
   }
 
-  function openDeedModal(idx) {
-    if (!els.deedBackdrop || idx < 0 || idx >= BOARD.length) return;
-    fillDeedContent(idx);
-    els.deedBackdrop.hidden = false;
-    els.deedBackdrop.setAttribute('aria-hidden', 'false');
-    els.deedClose.focus();
+  function renderDeedTray() {
+    if (!els.deedTray) return;
+    els.deedTray.innerHTML = '';
+    if (deedOpenOrder.length === 0) {
+      els.deedTray.hidden = true;
+      els.deedTray.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    els.deedTray.hidden = false;
+    els.deedTray.setAttribute('aria-hidden', 'false');
+    deedOpenOrder.forEach((idx) => {
+      const art = document.createElement('article');
+      art.className = 'mono-deed-tile';
+      art.dataset.boardIdx = String(idx);
+      art.setAttribute('aria-label', `${BOARD[idx].name.replace(/\n/g, ' ')} listing`);
+      art.innerHTML = buildDeedCardMarkup(idx);
+      art.querySelector('.mono-deed-tile-close')?.addEventListener('click', () => removeDeedTile(idx));
+      els.deedTray.appendChild(art);
+    });
   }
 
-  function closeDeedModal() {
-    if (!els.deedBackdrop) return;
-    els.deedBackdrop.hidden = true;
-    els.deedBackdrop.setAttribute('aria-hidden', 'true');
+  function toggleDeedTile(idx) {
+    if (idx < 0 || idx >= BOARD.length) return;
+    const pos = deedOpenOrder.indexOf(idx);
+    if (pos >= 0) deedOpenOrder.splice(pos, 1);
+    else deedOpenOrder.push(idx);
+    renderDeedTray();
+  }
+
+  function removeDeedTile(idx) {
+    const pos = deedOpenOrder.indexOf(idx);
+    if (pos >= 0) deedOpenOrder.splice(pos, 1);
+    renderDeedTray();
+  }
+
+  function closeAllDeedTiles() {
+    deedOpenOrder.length = 0;
+    renderDeedTray();
   }
 
   function wireDeedUI(boardRoot) {
-    const section = document.getElementById('game');
-    if (!section || els.deedBackdrop) return;
+    if (els.deedTray) return;
 
-    const backdrop = document.createElement('div');
-    backdrop.id = 'monoDeedBackdrop';
-    backdrop.className = 'mono-deed-backdrop';
-    backdrop.hidden = true;
-    backdrop.setAttribute('aria-hidden', 'true');
-    backdrop.innerHTML = `
-      <div class="mono-deed-card" role="dialog" aria-modal="true" tabindex="-1">
-        <button type="button" class="mono-deed-close" aria-label="Close listing card">&times;</button>
-        <div id="monoDeedContent" class="mono-deed-content"></div>
-      </div>`;
-    section.appendChild(backdrop);
-
-    els.deedBackdrop = backdrop;
-    els.deedCard = backdrop.querySelector('.mono-deed-card');
-    els.deedContent = backdrop.querySelector('#monoDeedContent');
-    els.deedClose = backdrop.querySelector('.mono-deed-close');
-
-    els.deedClose.addEventListener('click', closeDeedModal);
-    backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) closeDeedModal();
-    });
+    const tray = document.createElement('div');
+    tray.id = 'monoDeedTray';
+    tray.className = 'mono-deed-tray';
+    tray.hidden = true;
+    tray.setAttribute('aria-hidden', 'true');
+    tray.setAttribute('aria-label', 'Open listing cards');
+    boardRoot.after(tray);
+    els.deedTray = tray;
 
     boardRoot.addEventListener('click', (e) => {
       const cell = e.target.closest('[data-board-idx]');
       if (!cell || !boardRoot.contains(cell)) return;
-      openDeedModal(Number(cell.dataset.boardIdx));
+      toggleDeedTile(Number(cell.dataset.boardIdx));
     });
 
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      if (!els.deedBackdrop || els.deedBackdrop.hidden) return;
-      closeDeedModal();
+      if (!els.deedTray || els.deedTray.hidden) return;
+      closeAllDeedTiles();
     });
   }
 
@@ -359,11 +374,10 @@
     }
 
     if (sq.kind === 'utility') {
-      /* One utility: dice×4 on last roll; both utilities: dice×10 */
       const n = countGroupOwned('utility', owner, ownership);
       const diceTotal = state.lastDiceTotal ?? 7;
-      const mult = n >= 2 ? 10 : 4;
-      return diceTotal * mult;
+      const perDice = n >= 2 ? UTILITY_PER_DICE_BOTH : UTILITY_PER_DICE_ONE;
+      return diceTotal * perDice;
     }
 
     const b = buildings[idx] || { houses: 0, hotel: false };
@@ -445,6 +459,8 @@
   let state = initialState();
   let cells = [];
   let els = {};
+  /** @type {number[]} Board indices with listing cards open below the board (order preserved). */
+  let deedOpenOrder = [];
 
   function log(line) {
     state.history.push(`${new Date().toISOString().slice(11, 19)} ${line}`);
@@ -1272,6 +1288,7 @@
     renderHud();
     renderLog();
     updatePieces();
+    if (deedOpenOrder.length > 0 && els.deedTray) renderDeedTray();
     els.gameOverEl.hidden = state.winner == null;
     if (state.winner != null) {
       els.gameOverText.textContent = `${PLAYER_LABEL[PLAYERS[state.winner]]} wins.`;
@@ -1451,6 +1468,7 @@
     els.jailPayBtn.addEventListener('click', onJailPayFine);
     els.jailRollBtn.addEventListener('click', onJailRollDoubles);
     center.querySelector('#monoResetBtn').addEventListener('click', () => {
+      closeAllDeedTiles();
       state = initialState();
       save();
       els.continueWrap.hidden = true;
@@ -1465,6 +1483,7 @@
       renderAll();
     });
     center.querySelector('#monoNewBtn').addEventListener('click', () => {
+      closeAllDeedTiles();
       state = initialState();
       save();
       els.continueWrap.hidden = true;
