@@ -1,5 +1,5 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v10';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v11';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   const JAIL_INDEX = 10;
@@ -236,6 +236,7 @@
       pendingDoublesExtraRoll: false,
       doublesRunHuman: 0,
       doublesRunAi: 0,
+      bankruptDetail: null,
     };
   }
 
@@ -270,15 +271,20 @@
       if (typeof state.pendingDoublesExtraRoll !== 'boolean') state.pendingDoublesExtraRoll = false;
       if (typeof state.doublesRunHuman !== 'number') state.doublesRunHuman = 0;
       if (typeof state.doublesRunAi !== 'number') state.doublesRunAi = 0;
+      if (!state.bankruptDetail || typeof state.bankruptDetail !== 'object') state.bankruptDetail = null;
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  function bankrupt(loser) {
+  function bankrupt(loser, detail) {
     state.winner = loser === 0 ? 1 : 0;
     state.phase = 'game_over';
+    state.bankruptDetail =
+      detail && typeof detail.amount === 'number'
+        ? { loser, amount: detail.amount, reason: detail.reason ?? '', balanceBefore: detail.balanceBefore ?? 0 }
+        : null;
     state.history.push(`${new Date().toISOString().slice(11, 19)} ${PLAYER_LABEL[PLAYERS[loser]]} is tapped out. ${PLAYER_LABEL[PLAYERS[state.winner]]} wins.`);
     if (state.history.length > 80) state.history.shift();
     save();
@@ -286,13 +292,47 @@
     renderAll();
   }
 
+  function gameOverSubtext(d) {
+    if (!d || typeof d.amount !== 'number') return '';
+    const amt = formatMoney(d.amount);
+    const had = formatMoney(Math.max(0, d.balanceBefore));
+    const rentM = /^Rent on (.+)$/.exec(d.reason || '');
+    const humanLost = d.loser === 0;
+
+    if (humanLost) {
+      if (rentM) {
+        return `You owed the Broker ${amt} for landing on ${rentM[1]}, but only had ${had} on hand.`;
+      }
+      if (d.reason === 'Shuttle fine') {
+        return `You owed ${amt} for the shuttle fine but only had ${had} on hand.`;
+      }
+      if (d.reason) {
+        return `You owed ${amt} for landing on ${d.reason} but only had ${had} on hand.`;
+      }
+      return `You couldn’t cover ${amt} (had ${had}).`;
+    }
+
+    if (rentM) {
+      return `The Broker owed you ${amt} for landing on ${rentM[1]} but only had ${had} on hand.`;
+    }
+    if (d.reason === 'Shuttle fine') {
+      return `The Broker owed ${amt} for the shuttle fine but only had ${had} on hand.`;
+    }
+    if (d.reason) {
+      return `The Broker owed ${amt} (${d.reason}) but only had ${had} on hand.`;
+    }
+    return `The Broker couldn’t cover ${amt} (had ${had}).`;
+  }
+
   function charge(playerIdx, amount, reason, silent) {
     state.cash[playerIdx] -= amount;
     if (!silent) {
       log(`${PLAYER_LABEL[PLAYERS[playerIdx]]} paid ${formatMoney(amount)} (${reason}).`);
     }
-    if (state.cash[playerIdx] < 0) bankrupt(playerIdx);
-    else {
+    if (state.cash[playerIdx] < 0) {
+      const balanceBefore = state.cash[playerIdx] + amount;
+      bankrupt(playerIdx, { amount, reason, balanceBefore });
+    } else {
       save();
       renderHud();
     }
@@ -1033,6 +1073,11 @@
     els.gameOverEl.hidden = state.winner == null;
     if (state.winner != null) {
       els.gameOverText.textContent = `${PLAYER_LABEL[PLAYERS[state.winner]]} wins.`;
+      const sub = gameOverSubtext(state.bankruptDetail);
+      if (els.gameOverDetail) {
+        els.gameOverDetail.textContent = sub;
+        els.gameOverDetail.hidden = !sub;
+      }
     }
   }
 
@@ -1174,7 +1219,8 @@
         <button type="button" class="cta-btn cta-btn-outline" id="monoNewBtn">New game</button>
       </div>
       <div class="mono-gameover" id="monoGameOver" hidden>
-        <p id="monoGameOverText"></p>
+        <p id="monoGameOverText" class="mono-gameover-title"></p>
+        <p id="monoGameOverDetail" class="mono-gameover-detail" hidden></p>
         <button type="button" class="cta-btn" id="monoResetBtn">Play again</button>
       </div>
     `;
@@ -1191,6 +1237,7 @@
     els.continueWrap = center.querySelector('#monoContinue');
     els.gameOverEl = center.querySelector('#monoGameOver');
     els.gameOverText = center.querySelector('#monoGameOverText');
+    els.gameOverDetail = center.querySelector('#monoGameOverDetail');
     els.jailActions = center.querySelector('#monoJailActions');
     els.jailPayBtn = center.querySelector('#monoJailPay');
     els.jailRollBtn = center.querySelector('#monoJailRoll');
