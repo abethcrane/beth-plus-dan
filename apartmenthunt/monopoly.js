@@ -1,17 +1,17 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v6';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v7';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   const PLAYERS = ['human', 'ai'];
   const PLAYER_LABEL = { human: 'You', ai: 'The Broker' };
 
-  /** @typedef {'corner'|'property'|'tax'|'transit'|'nice'} SquareKind */
+  /** @typedef {'corner'|'property'|'tax'|'transit'|'utility'|'nice'} SquareKind */
 
-  /** Prices & base rents follow UK Monopoly × 25 (£→$). Taxes kept deliberately cheap vs starting cash. Starting cash £1500→$37,500; GO £200→$5,000. */
+  /** Prices & base rents follow UK Monopoly × 25 (£→$). Utilities buyable like stations; rent = dice ×4 / ×10 with one / both owned. Taxes cheap vs cash. */
 
-  /** @type {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string }[]} */
+  /** @type {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string, tileColor?: string }[]} */
   const BOARD = [
-    { kind: 'corner', name: 'GO — Pay Day', side: 'sw' },
+    { kind: 'corner', name: 'Payday', side: 'sw' },
     { kind: 'property', name: 'Broadway', price: 1500, baseRent: 50, group: 'brown', side: 's' },
     { kind: 'nice', name: 'Washington Irving\nLibrary', side: 's' },
     { kind: 'property', name: 'Myrtle Ave', price: 1500, baseRent: 100, group: 'brown', side: 's' },
@@ -23,7 +23,15 @@
     { kind: 'property', name: '69th Ave', price: 3000, baseRent: 200, group: 'light_blue', side: 's' },
     { kind: 'corner', name: 'Shuttle stop', side: 'nw' },
     { kind: 'property', name: 'Morgan Ave', price: 3500, baseRent: 250, group: 'pink', side: 'w' },
-    { kind: 'tax', name: 'National Gas', tax: 1000, side: 'w' },
+    {
+      kind: 'utility',
+      name: 'National Gas',
+      price: 3750,
+      baseRent: 0,
+      group: 'utility',
+      side: 'w',
+      tileColor: '#4299f0',
+    },
     { kind: 'property', name: 'Wyckoff Ave', price: 3500, baseRent: 250, group: 'pink', side: 'w' },
     { kind: 'property', name: 'Seneca Ave', price: 4000, baseRent: 300, group: 'pink', side: 'w' },
     { kind: 'transit', name: 'L Train', price: 5000, baseRent: 0, group: 'transit', side: 'w', stripColor: '#a7a9ac' },
@@ -39,7 +47,15 @@
     { kind: 'transit', name: 'J / Z Train', price: 5000, baseRent: 0, group: 'transit', side: 'n', stripColor: '#996633' },
     { kind: 'property', name: 'Hancock St', price: 6500, baseRent: 550, group: 'yellow', side: 'n' },
     { kind: 'property', name: 'Covert St', price: 6500, baseRent: 550, group: 'yellow', side: 'n' },
-    { kind: 'tax', name: 'Con Ed Electric', tax: 1000, side: 'n' },
+    {
+      kind: 'utility',
+      name: 'Con Ed Electric',
+      price: 3750,
+      baseRent: 0,
+      group: 'utility',
+      side: 'n',
+      tileColor: '#4299f0',
+    },
     { kind: 'property', name: 'Weirfeld St', price: 7000, baseRent: 550, group: 'yellow', side: 'n' },
     { kind: 'corner', name: 'Trackwork —\ntake the bus', side: 'ne' },
     { kind: 'property', name: 'Grandview Ave', price: 7500, baseRent: 650, group: 'green', side: 'e' },
@@ -63,6 +79,7 @@
     green: '#5a9e6e',
     blue: '#5c6eb8',
     transit: '#9a9a9a',
+    utility: '#4299f0',
   };
 
   function cellGridPos(i) {
@@ -135,6 +152,13 @@
       return table[Math.max(0, Math.min(n, 4) - 1)] ?? 250;
     }
 
+    if (sq.kind === 'utility') {
+      const n = countGroupOwned('utility', owner, ownership);
+      const diceTotal = state.lastDiceTotal ?? 7;
+      const mult = n >= 2 ? 10 : 4;
+      return diceTotal * mult;
+    }
+
     const b = buildings[idx] || { houses: 0, hotel: false };
     let mult = rentMultiplier(b.houses, b.hotel);
     let rent = sq.baseRent * mult;
@@ -202,6 +226,7 @@
       phase: 'player_roll',
       history: [],
       winner: null,
+      lastDiceTotal: 7,
     };
   }
 
@@ -376,6 +401,7 @@
     els.diceEl.textContent = `${dice[0]} + ${dice[1]} = ${dice[0] + dice[1]}`;
     animateDice();
     const total = dice[0] + dice[1];
+    state.lastDiceTotal = total;
     movePlayer(1, total, () => {
       if (state.positions[1] === 30) {
         teleportToJail(1);
@@ -446,6 +472,7 @@
     els.diceEl.textContent = `${dice[0]} + ${dice[1]} = ${dice[0] + dice[1]}`;
     animateDice();
     const total = dice[0] + dice[1];
+    state.lastDiceTotal = total;
     movePlayer(0, total, () => {
       const idx = state.positions[0];
       if (idx === 30) {
@@ -629,12 +656,28 @@
       const { row, col } = cellGridPos(idx);
       const cell = document.createElement('div');
       cell.className = `mono-cell mono-cell--${sq.side}`;
-      if (sq.kind === 'property' || sq.kind === 'transit') {
+      if (idx === 0) {
+        cell.classList.add('mono-cell--payday');
+      }
+      if (idx === 30) {
+        cell.classList.add('mono-cell--trackwork');
+      }
+      if (sq.kind === 'property') {
         cell.classList.add('mono-cell--property');
         const strip = document.createElement('div');
         strip.className = 'mono-strip';
         strip.style.background = sq.stripColor || GROUP_COLORS[sq.group] || '#666';
         cell.appendChild(strip);
+      }
+      if (sq.kind === 'transit') {
+        cell.classList.add('mono-cell--property');
+        cell.classList.add('mono-cell--transit');
+        cell.style.setProperty('--transit-color', sq.stripColor || GROUP_COLORS.transit || '#666');
+      }
+      if (sq.kind === 'utility') {
+        cell.classList.add('mono-cell--property');
+        cell.classList.add('mono-cell--utility');
+        cell.style.setProperty('--utility-color', sq.tileColor || GROUP_COLORS.utility);
       }
       if (sq.kind === 'nice') {
         cell.classList.add('mono-cell--nice');
@@ -671,7 +714,15 @@
         body.className = 'mono-cell-body';
         const name = document.createElement('span');
         name.className = 'mono-name';
-        name.innerHTML = sq.name.replace(/\n/g, '<br/>');
+        if (idx === 0) {
+          name.appendChild(document.createTextNode('Payday: '));
+          const goAmt = document.createElement('span');
+          goAmt.className = 'mono-price';
+          goAmt.textContent = formatMoney(GO_BONUS);
+          name.appendChild(goAmt);
+        } else {
+          name.innerHTML = sq.name.replace(/\n/g, '<br/>');
+        }
         body.appendChild(name);
         if (sq.price != null) {
           const price = document.createElement('span');
