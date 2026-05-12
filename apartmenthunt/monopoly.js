@@ -1,5 +1,5 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v13';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v14';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   /** Classic utility dice multipliers 4 / 10, scaled ×25 like rest of board economy → pay dice×100 or dice×250 */
@@ -14,100 +14,87 @@
 
   /** @typedef {'corner'|'property'|'tax'|'transit'|'utility'|'nice'} SquareKind */
 
-  /** Prices & base rents follow UK Monopoly × 25 (£→$). Utilities: dice × (4×25) or × (10×25) per ownership count. Taxes cheap vs cash. */
+  /** Economy: UK Monopoly £ values × 25 → $. Sources: [Monopoly Wiki UK Properties category](https://monopoly.fandom.com/wiki/Category:UK_Properties) + [Wikibooks UK column](https://en.wikibooks.org/wiki/Monopoly/Properties_reference). Utilities: dice × (4×25) or × (10×25). */
 
   /**
    * @typedef {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string, tileColor?: string, rentSchedule?: number[], houseCost?: number, hotelCost?: number }} BoardSquare
    */
 
+  /**
+   * UK deed £ → game $. `rents` = [site, 1 house, …, 4 houses, hotel]; colour-set doubling applies to site rent only (handled in computeRent).
+   * @param {number} poundsPrice
+   * @param {number} poundsHouse
+   * @param {[number, number, number, number, number, number]} rents
+   */
+  function ukProp(poundsPrice, poundsHouse, rents) {
+    const m = 25;
+    return {
+      price: poundsPrice * m,
+      baseRent: rents[0] * m,
+      houseCost: poundsHouse * m,
+      hotelCost: poundsHouse * m,
+      rentSchedule: rents.map((x) => x * m),
+    };
+  }
+
   /** @type {BoardSquare[]} */
   const BOARD = [
     { kind: 'corner', name: 'Payday', side: 'sw' },
-    { kind: 'property', name: 'Broadway', price: 1500, baseRent: 50, group: 'brown', side: 's' },
+    { kind: 'property', name: 'Broadway', group: 'brown', side: 's', ...ukProp(60, 50, [2, 10, 30, 90, 160, 250]) },
     { kind: 'nice', name: 'Washington Irving\nLibrary', side: 's' },
-    { kind: 'property', name: 'Myrtle Ave', price: 1500, baseRent: 100, group: 'brown', side: 's' },
-    { kind: 'tax', name: 'Broker Fee', tax: 1500, side: 's' },
-    { kind: 'transit', name: 'M Train', price: 5000, baseRent: 0, group: 'transit', side: 's', stripColor: '#ff6319' },
-    {
-      kind: 'property',
-      name: '60th Pl',
-      price: 1500,
-      baseRent: 150,
-      group: 'light_blue',
-      side: 's',
-      rentSchedule: [150, 750, 2250, 6750, 10000, 13750],
-      houseCost: 1250,
-      hotelCost: 1250,
-    },
+    { kind: 'property', name: 'Myrtle Ave', group: 'brown', side: 's', ...ukProp(60, 50, [4, 20, 60, 180, 320, 450]) },
+    { kind: 'tax', name: 'Broker Fee', tax: 200 * 25, side: 's' },
+    { kind: 'transit', name: 'M Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 's', stripColor: '#ff6319' },
+    { kind: 'property', name: '60th Pl', group: 'light_blue', side: 's', ...ukProp(100, 50, [6, 30, 90, 270, 400, 550]) },
     { kind: 'nice', name: 'Mixtape', side: 's' },
-    {
-      kind: 'property',
-      name: 'Forest Ave',
-      price: 1500,
-      baseRent: 150,
-      group: 'light_blue',
-      side: 's',
-      rentSchedule: [150, 750, 2250, 6750, 10000, 13750],
-      houseCost: 1250,
-      hotelCost: 1250,
-    },
-    {
-      kind: 'property',
-      name: '69th Ave',
-      price: 1500,
-      baseRent: 150,
-      group: 'light_blue',
-      side: 's',
-      rentSchedule: [150, 750, 2250, 6750, 10000, 13750],
-      houseCost: 1250,
-      hotelCost: 1250,
-    },
+    { kind: 'property', name: 'Forest Ave', group: 'light_blue', side: 's', ...ukProp(100, 50, [6, 30, 90, 270, 400, 550]) },
+    { kind: 'property', name: '69th Ave', group: 'light_blue', side: 's', ...ukProp(120, 50, [8, 40, 100, 300, 450, 600]) },
     { kind: 'corner', name: 'Shuttle stop', side: 'nw' },
-    { kind: 'property', name: 'Morgan Ave', price: 3500, baseRent: 250, group: 'pink', side: 'w' },
+    { kind: 'property', name: 'Morgan Ave', group: 'pink', side: 'w', ...ukProp(140, 100, [10, 50, 150, 450, 625, 750]) },
     {
       kind: 'utility',
       name: 'National Gas',
-      price: 3750,
+      price: 150 * 25,
       baseRent: 0,
       group: 'utility',
       side: 'w',
       tileColor: '#4299f0',
     },
-    { kind: 'property', name: 'Wyckoff Ave', price: 3500, baseRent: 250, group: 'pink', side: 'w' },
-    { kind: 'property', name: 'Seneca Ave', price: 4000, baseRent: 300, group: 'pink', side: 'w' },
-    { kind: 'transit', name: 'L Train', price: 5000, baseRent: 0, group: 'transit', side: 'w', stripColor: '#a7a9ac' },
-    { kind: 'property', name: 'Gates Ave', price: 4500, baseRent: 350, group: 'orange', side: 'w' },
+    { kind: 'property', name: 'Wyckoff Ave', group: 'pink', side: 'w', ...ukProp(140, 100, [10, 50, 150, 450, 625, 750]) },
+    { kind: 'property', name: 'Seneca Ave', group: 'pink', side: 'w', ...ukProp(160, 100, [12, 60, 180, 500, 700, 900]) },
+    { kind: 'transit', name: 'L Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'w', stripColor: '#a7a9ac' },
+    { kind: 'property', name: 'Gates Ave', group: 'orange', side: 'w', ...ukProp(180, 100, [14, 70, 200, 550, 750, 950]) },
     { kind: 'nice', name: 'Ridgewood\nCommunity Garden', side: 'w' },
-    { kind: 'property', name: 'Halsey St', price: 4500, baseRent: 350, group: 'orange', side: 'w' },
-    { kind: 'property', name: 'Palmetto St', price: 5000, baseRent: 400, group: 'orange', side: 'w' },
+    { kind: 'property', name: 'Halsey St', group: 'orange', side: 'w', ...ukProp(180, 100, [14, 70, 200, 550, 750, 950]) },
+    { kind: 'property', name: 'Palmetto St', group: 'orange', side: 'w', ...ukProp(200, 100, [16, 80, 220, 600, 800, 1000]) },
     { kind: 'corner', name: 'Maria Hernandez\nPark', side: 'nw' },
-    { kind: 'property', name: 'Greene Ave', price: 5500, baseRent: 450, group: 'red', side: 'n' },
+    { kind: 'property', name: 'Greene Ave', group: 'red', side: 'n', ...ukProp(220, 150, [18, 90, 250, 700, 875, 1050]) },
     { kind: 'nice', name: 'Ice Cream Window', side: 'n' },
-    { kind: 'property', name: 'Grove St', price: 5500, baseRent: 450, group: 'red', side: 'n' },
-    { kind: 'property', name: 'Evergreen Ave', price: 6000, baseRent: 500, group: 'red', side: 'n' },
-    { kind: 'transit', name: 'J / Z Train', price: 5000, baseRent: 0, group: 'transit', side: 'n', stripColor: '#996633' },
-    { kind: 'property', name: 'Hancock St', price: 6500, baseRent: 550, group: 'yellow', side: 'n' },
-    { kind: 'property', name: 'Covert St', price: 6500, baseRent: 550, group: 'yellow', side: 'n' },
+    { kind: 'property', name: 'Grove St', group: 'red', side: 'n', ...ukProp(220, 150, [18, 90, 250, 700, 875, 1050]) },
+    { kind: 'property', name: 'Evergreen Ave', group: 'red', side: 'n', ...ukProp(240, 150, [20, 100, 300, 750, 925, 1100]) },
+    { kind: 'transit', name: 'J / Z Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'n', stripColor: '#996633' },
+    { kind: 'property', name: 'Hancock St', group: 'yellow', side: 'n', ...ukProp(260, 150, [22, 110, 330, 800, 975, 1150]) },
+    { kind: 'property', name: 'Covert St', group: 'yellow', side: 'n', ...ukProp(260, 150, [22, 110, 330, 800, 975, 1150]) },
     {
       kind: 'utility',
       name: 'Con Ed Electric',
-      price: 3750,
+      price: 150 * 25,
       baseRent: 0,
       group: 'utility',
       side: 'n',
       tileColor: '#4299f0',
     },
-    { kind: 'property', name: 'Weirfeld St', price: 7000, baseRent: 550, group: 'yellow', side: 'n' },
+    { kind: 'property', name: 'Weirfeld St', group: 'yellow', side: 'n', ...ukProp(280, 150, [24, 120, 360, 850, 1025, 1200]) },
     { kind: 'corner', name: 'Trackwork —\ntake the bus', side: 'ne' },
-    { kind: 'property', name: 'Grandview Ave', price: 7500, baseRent: 650, group: 'green', side: 'e' },
-    { kind: 'property', name: 'Onderdonk Ave', price: 7500, baseRent: 650, group: 'green', side: 'e' },
+    { kind: 'property', name: 'Grandview Ave', group: 'green', side: 'e', ...ukProp(300, 200, [26, 130, 390, 900, 1100, 1275]) },
+    { kind: 'property', name: 'Onderdonk Ave', group: 'green', side: 'e', ...ukProp(300, 200, [26, 130, 390, 900, 1100, 1275]) },
     { kind: 'nice', name: 'Citibike Dock', side: 'e' },
-    { kind: 'property', name: 'Woodward Ave', price: 8000, baseRent: 700, group: 'green', side: 'e' },
-    { kind: 'transit', name: 'G Train', price: 5000, baseRent: 0, group: 'transit', side: 'e', stripColor: '#6cbe45' },
+    { kind: 'property', name: 'Woodward Ave', group: 'green', side: 'e', ...ukProp(320, 200, [28, 150, 450, 1000, 1200, 1400]) },
+    { kind: 'transit', name: 'G Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'e', stripColor: '#6cbe45' },
     { kind: 'nice', name: 'Panina', side: 'e' },
-    { kind: 'property', name: 'Cornelia St', price: 8750, baseRent: 875, group: 'blue', side: 'e' },
-    { kind: 'tax', name: 'Application Fee', tax: 750, side: 'e' },
-    { kind: 'property', name: 'Catalpa Ave', price: 10000, baseRent: 1250, group: 'blue', side: 'e' },
+    { kind: 'property', name: 'Cornelia St', group: 'blue', side: 'e', ...ukProp(350, 200, [35, 175, 500, 1100, 1300, 1500]) },
+    { kind: 'tax', name: 'Application Fee', tax: 100 * 25, side: 'e' },
+    { kind: 'property', name: 'Catalpa Ave', group: 'blue', side: 'e', ...ukProp(400, 200, [50, 200, 600, 1400, 1700, 2000]) },
   ];
 
   const GROUP_COLORS = {
