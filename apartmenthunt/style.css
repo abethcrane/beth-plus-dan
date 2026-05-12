@@ -343,6 +343,11 @@ header {
   border-radius: 14px;
 }
 
+.mono-board > .mono-center {
+  min-height: 0;
+  min-width: 0;
+}
+
 .mono-cell {
   position: relative;
   background: rgba(22, 21, 16, 0.92);
@@ -541,22 +546,14 @@ header {
   max-width: 18px;
 }
 
-.mono-cell--owned-human {
-  box-shadow: inset 0 0 0 1px rgba(138, 171, 110, 0.55);
-}
-
 .mono-cell--owned-human::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(138, 171, 110, 0.24);
+  background: rgba(138, 171, 110, 0.34);
   pointer-events: none;
   z-index: 1;
-}
-
-.mono-cell--owned-ai {
-  box-shadow: inset 0 0 0 1px rgba(212, 165, 103, 0.52);
 }
 
 .mono-cell--owned-ai::after {
@@ -564,7 +561,7 @@ header {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(212, 165, 103, 0.22);
+  background: rgba(212, 165, 103, 0.3);
   pointer-events: none;
   z-index: 1;
 }
@@ -659,7 +656,12 @@ header {
   justify-content: center;
   gap: 2px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 5;
+}
+
+/* South strip sits on bottom edge; keep tokens above it so they aren’t clipped/stack-fighting under overflow:hidden */
+.mono-cell--s:not(.mono-cell--jail-corner) .mono-cell-pieces {
+  bottom: calc(27% + 3px);
 }
 
 .mono-piece {
@@ -699,7 +701,7 @@ header {
   border-radius: 4px;
   padding: 1px 4px;
   line-height: 1.2;
-  z-index: 3;
+  z-index: 6;
 }
 
 /* Listing cards docked below board (tap squares to pin / unpin; multiple tile in a row) */
@@ -882,11 +884,33 @@ header {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.5rem;
+  gap: 0.45rem;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: visible;
   position: relative;
+}
+
+.mono-center-head {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mono-portfolio-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mono-center-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
 .mono-brand {
@@ -928,14 +952,17 @@ header {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem 1rem;
-  align-items: start;
+  align-items: stretch;
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   font-size: 0.72rem;
   color: var(--text-muted);
 }
 
 .mono-cash-col {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -964,17 +991,80 @@ header {
   font-weight: 700;
 }
 
+.mono-portfolio-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 4rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.mono-portfolio-shell::before,
+.mono-portfolio-shell::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.mono-portfolio-shell::before {
+  top: 0;
+  background: linear-gradient(rgba(15, 14, 11, 0.96), transparent);
+}
+
+.mono-portfolio-shell::after {
+  bottom: 0;
+  background: linear-gradient(transparent, rgba(15, 14, 11, 0.96));
+}
+
+.mono-portfolio-shell.mono-portfolio-shell--more-above::before {
+  opacity: 1;
+}
+
+.mono-portfolio-shell.mono-portfolio-shell--more-below::after {
+  opacity: 1;
+}
+
+.mono-portfolio-hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  opacity: 0.88;
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+.mono-portfolio-hint--up {
+  top: 0;
+}
+
+.mono-portfolio-hint--down {
+  bottom: 0;
+}
+
 .mono-portfolio {
   list-style: none;
-  margin: 0.35rem 0 0;
-  padding: 0;
+  margin: 0.25rem 0 0;
+  padding: 12px 2px 14px;
   font-size: 0.58rem;
   line-height: 1.3;
   color: var(--text-muted);
-  max-height: 5.25rem;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   word-break: break-word;
+  position: relative;
+  z-index: 0;
 }
 
 .mono-cash-col--ai .mono-portfolio {
@@ -984,6 +1074,55 @@ header {
 .mono-portfolio-empty {
   opacity: 0.65;
   font-style: italic;
+}
+
+.mono-portfolio-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.32rem;
+  margin-bottom: 0.28rem;
+}
+
+.mono-portfolio-group:last-child {
+  margin-bottom: 0;
+}
+
+.mono-portfolio-group::before {
+  content: '';
+  flex-shrink: 0;
+  width: 4px;
+  margin-top: 0.14em;
+  align-self: stretch;
+  min-height: 0.72em;
+  border-radius: 2px;
+  background: var(--portfolio-accent, #888);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.22);
+}
+
+.mono-portfolio-chips {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem 0.38rem;
+}
+
+.mono-cash-col--ai .mono-portfolio-group {
+  flex-direction: row-reverse;
+}
+
+.mono-cash-col--ai .mono-portfolio-chips {
+  justify-content: flex-end;
+}
+
+.mono-portfolio-chip {
+  display: inline-block;
+  padding: 0.06rem 0.28rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--text-muted);
+  box-shadow: inset 2px 0 0 0 var(--chip-accent, rgba(255, 255, 255, 0.15));
 }
 
 .mono-prompt {

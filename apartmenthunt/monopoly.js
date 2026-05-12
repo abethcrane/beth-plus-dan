@@ -1,5 +1,5 @@
 (() => {
-  const STORAGE_KEY = 'bushwick-monopoly-state-v12';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v13';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   /** Classic utility dice multipliers 4 / 10, scaled ×25 like rest of board economy → pay dice×100 or dice×250 */
@@ -16,7 +16,11 @@
 
   /** Prices & base rents follow UK Monopoly × 25 (£→$). Utilities: dice × (4×25) or × (10×25) per ownership count. Taxes cheap vs cash. */
 
-  /** @type {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string, tileColor?: string }[]} */
+  /**
+   * @typedef {{ kind: SquareKind, name: string, price?: number, baseRent?: number, group?: string, tax?: number, side: string, stripColor?: string, tileColor?: string, rentSchedule?: number[], houseCost?: number, hotelCost?: number }} BoardSquare
+   */
+
+  /** @type {BoardSquare[]} */
   const BOARD = [
     { kind: 'corner', name: 'Payday', side: 'sw' },
     { kind: 'property', name: 'Broadway', price: 1500, baseRent: 50, group: 'brown', side: 's' },
@@ -24,10 +28,40 @@
     { kind: 'property', name: 'Myrtle Ave', price: 1500, baseRent: 100, group: 'brown', side: 's' },
     { kind: 'tax', name: 'Broker Fee', tax: 1500, side: 's' },
     { kind: 'transit', name: 'M Train', price: 5000, baseRent: 0, group: 'transit', side: 's', stripColor: '#ff6319' },
-    { kind: 'property', name: '60th Pl', price: 2500, baseRent: 150, group: 'light_blue', side: 's' },
+    {
+      kind: 'property',
+      name: '60th Pl',
+      price: 1500,
+      baseRent: 150,
+      group: 'light_blue',
+      side: 's',
+      rentSchedule: [150, 750, 2250, 6750, 10000, 13750],
+      houseCost: 1250,
+      hotelCost: 1250,
+    },
     { kind: 'nice', name: 'Mixtape', side: 's' },
-    { kind: 'property', name: 'Forest Ave', price: 2500, baseRent: 150, group: 'light_blue', side: 's' },
-    { kind: 'property', name: '69th Ave', price: 3000, baseRent: 200, group: 'light_blue', side: 's' },
+    {
+      kind: 'property',
+      name: 'Forest Ave',
+      price: 1500,
+      baseRent: 150,
+      group: 'light_blue',
+      side: 's',
+      rentSchedule: [150, 750, 2250, 6750, 10000, 13750],
+      houseCost: 1250,
+      hotelCost: 1250,
+    },
+    {
+      kind: 'property',
+      name: '69th Ave',
+      price: 1500,
+      baseRent: 150,
+      group: 'light_blue',
+      side: 's',
+      rentSchedule: [150, 750, 2250, 6750, 10000, 13750],
+      houseCost: 1250,
+      hotelCost: 1250,
+    },
     { kind: 'corner', name: 'Shuttle stop', side: 'nw' },
     { kind: 'property', name: 'Morgan Ave', price: 3500, baseRent: 250, group: 'pink', side: 'w' },
     {
@@ -89,6 +123,21 @@
     utility: '#4299f0',
   };
 
+  /** HUD portfolio buckets: Monopoly color order, then trains/utilities, then edge cases. */
+  const PORTFOLIO_GROUP_ORDER = [
+    'brown',
+    'light_blue',
+    'pink',
+    'orange',
+    'red',
+    'yellow',
+    'green',
+    'blue',
+    '__transit',
+    '__utility',
+    '__misc',
+  ];
+
   function cellGridPos(i) {
     if (i === 0) return { row: 11, col: 11 };
     if (i >= 1 && i <= 9) return { row: 11, col: 11 - i };
@@ -136,6 +185,25 @@
     return rows;
   }
 
+  /** UK-style deed column (site, 1–4 houses, hotel), already scaled ×25 into dollars. */
+  function propertyScheduleRowsFromSchedule(schedule) {
+    const [site, h1, h2, h3, h4, hotel] = schedule;
+    return [
+      ['Site rent', formatMoney(site)],
+      ['Monopoly · undeveloped', formatMoney(site * 2)],
+      ['With 1 house', formatMoney(h1)],
+      ['With 2 houses', formatMoney(h2)],
+      ['With 3 houses', formatMoney(h3)],
+      ['With 4 houses', formatMoney(h4)],
+      ['With hotel', formatMoney(hotel)],
+    ];
+  }
+
+  function propertyScheduleRowsForSq(sq) {
+    if (sq.rentSchedule?.length === 6) return propertyScheduleRowsFromSchedule(sq.rentSchedule);
+    return propertyScheduleRows(sq.baseRent);
+  }
+
   function buildDeedCardMarkup(idx) {
     const sq = BOARD[idx];
     const stripHex = sq.stripColor || GROUP_COLORS[sq.group] || '#888';
@@ -155,7 +223,7 @@
       const houseC = houseCostFor(idx);
       const hotelC = hotelCostFor(idx);
       const monoOwned = owner ? hasMonopoly(owner, sq.group, state.ownership) : false;
-      const rows = propertyScheduleRows(sq.baseRent);
+      const rows = propertyScheduleRowsForSq(sq);
       const curRent =
         owner && sq.kind === 'property'
           ? computeRent(idx, state.ownership, state.buildings)
@@ -329,12 +397,14 @@
   function houseCostFor(idx) {
     const sq = BOARD[idx];
     if (sq.kind !== 'property') return 0;
+    if (sq.houseCost != null) return sq.houseCost;
     return Math.round(sq.price * 0.5);
   }
 
   function hotelCostFor(idx) {
     const sq = BOARD[idx];
     if (sq.kind !== 'property') return 0;
+    if (sq.hotelCost != null) return sq.hotelCost;
     return Math.round(sq.price * 0.75);
   }
 
@@ -381,9 +451,17 @@
     }
 
     const b = buildings[idx] || { houses: 0, hotel: false };
+    const mono = hasMonopoly(owner, sq.group, ownership);
+    const sch = sq.rentSchedule;
+    if (sch?.length === 6) {
+      if (b.hotel) return sch[5];
+      if (b.houses >= 1 && b.houses <= 4) return sch[b.houses];
+      let site = sch[0];
+      if (mono) site *= 2;
+      return Math.round(site);
+    }
     let mult = rentMultiplier(b.houses, b.hotel);
     let rent = sq.baseRent * mult;
-    const mono = hasMonopoly(owner, sq.group, ownership);
     if (mono && b.houses === 0 && !b.hotel) rent *= 2;
     return Math.round(rent);
   }
@@ -459,6 +537,7 @@
   let state = initialState();
   let cells = [];
   let els = {};
+  let portfolioScrollRaf = null;
   /** @type {number[]} Board indices with listing cards open below the board (order preserved). */
   let deedOpenOrder = [];
 
@@ -1133,16 +1212,67 @@
     els.promptEl.textContent = text;
   }
 
-  function portfolioIndicesFor(ownerKey) {
-    const out = [];
+  function portfolioGroupKeyFor(idx) {
+    const sq = BOARD[idx];
+    if (sq.kind === 'property') return sq.group || '__misc';
+    if (sq.kind === 'transit') return '__transit';
+    if (sq.kind === 'utility') return '__utility';
+    return '__misc';
+  }
+
+  function portfolioGroupSortIndex(groupKey) {
+    const i = PORTFOLIO_GROUP_ORDER.indexOf(groupKey);
+    return i === -1 ? PORTFOLIO_GROUP_ORDER.length : i;
+  }
+
+  function portfolioRowAccent(groupKey, firstIdx) {
+    if (groupKey === '__transit') return GROUP_COLORS.transit;
+    if (groupKey === '__utility') return GROUP_COLORS.utility;
+    if (groupKey === '__misc') return portfolioAccentColor(firstIdx);
+    return GROUP_COLORS[groupKey] || portfolioAccentColor(firstIdx);
+  }
+
+  function portfolioGroupsFor(ownerKey) {
+    const buckets = new Map();
     BOARD.forEach((sq, idx) => {
       if (state.ownership[idx] !== ownerKey) return;
-      if (sq.kind === 'property' || sq.kind === 'transit' || sq.kind === 'utility') out.push(idx);
+      if (sq.kind !== 'property' && sq.kind !== 'transit' && sq.kind !== 'utility') return;
+      const k = portfolioGroupKeyFor(idx);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(idx);
     });
-    out.sort((a, b) =>
-      BOARD[a].name.localeCompare(BOARD[b].name, undefined, { sensitivity: 'base' }),
+    buckets.forEach((arr) =>
+      arr.sort((a, b) =>
+        BOARD[a].name.localeCompare(BOARD[b].name, undefined, { sensitivity: 'base' }),
+      ),
     );
-    return out;
+    const keys = [...buckets.keys()].sort((a, b) => {
+      const da = portfolioGroupSortIndex(a);
+      const db = portfolioGroupSortIndex(b);
+      if (da !== db) return da - db;
+      return String(a).localeCompare(String(b));
+    });
+    return keys.map((groupKey) => {
+      const indices = buckets.get(groupKey);
+      const accent = portfolioRowAccent(groupKey, indices[0]);
+      return {
+        groupKey,
+        accent,
+        items: indices.map((idx) => ({
+          idx,
+          text: portfolioLineFor(idx),
+          chipAccent: portfolioAccentColor(idx),
+        })),
+      };
+    });
+  }
+
+  function portfolioAccentColor(idx) {
+    const sq = BOARD[idx];
+    if (sq.stripColor) return sq.stripColor;
+    if (sq.kind === 'utility') return sq.tileColor || GROUP_COLORS.utility;
+    if (sq.group && GROUP_COLORS[sq.group]) return GROUP_COLORS[sq.group];
+    return GROUP_COLORS.transit;
   }
 
   function portfolioLineFor(idx) {
@@ -1155,6 +1285,44 @@
     return rawName;
   }
 
+  function schedulePortfolioScrollHints() {
+    if (portfolioScrollRaf != null) return;
+    portfolioScrollRaf = requestAnimationFrame(() => {
+      portfolioScrollRaf = null;
+      syncPortfolioScrollHints();
+    });
+  }
+
+  function syncPortfolioScrollHints() {
+    syncOnePortfolioShell(els.portfolioHumanShell, els.portfolioHuman);
+    syncOnePortfolioShell(els.portfolioAiShell, els.portfolioAi);
+  }
+
+  function syncOnePortfolioShell(shell, ul) {
+    if (!shell || !ul) return;
+    const up = shell.querySelector('.mono-portfolio-hint--up');
+    const down = shell.querySelector('.mono-portfolio-hint--down');
+    if (!up || !down) return;
+    const epsilon = 5;
+    const maxScroll = ul.scrollHeight - ul.clientHeight;
+    const overflow = maxScroll > epsilon;
+    const canUp = overflow && ul.scrollTop > epsilon;
+    const canDown = overflow && ul.scrollTop < maxScroll - epsilon;
+    up.hidden = !canUp;
+    down.hidden = !canDown;
+    shell.classList.toggle('mono-portfolio-shell--more-above', canUp);
+    shell.classList.toggle('mono-portfolio-shell--more-below', canDown);
+  }
+
+  function bindPortfolioScrollUi() {
+    if (els._portfolioScrollBound) return;
+    els._portfolioScrollBound = true;
+    const onScroll = () => schedulePortfolioScrollHints();
+    els.portfolioHuman?.addEventListener('scroll', onScroll, { passive: true });
+    els.portfolioAi?.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+  }
+
   function renderPortfolios() {
     if (!els.portfolioHuman || !els.portfolioAi) return;
     const cols = [
@@ -1163,20 +1331,32 @@
     ];
     cols.forEach(({ ul, key }) => {
       ul.innerHTML = '';
-      const idxs = portfolioIndicesFor(key);
-      if (idxs.length === 0) {
+      const groups = portfolioGroupsFor(key);
+      if (groups.length === 0) {
         const li = document.createElement('li');
         li.className = 'mono-portfolio-empty';
         li.textContent = 'No listings yet';
         ul.appendChild(li);
         return;
       }
-      idxs.forEach((idx) => {
+      groups.forEach((g) => {
         const li = document.createElement('li');
-        li.textContent = portfolioLineFor(idx);
+        li.className = 'mono-portfolio-group';
+        li.style.setProperty('--portfolio-accent', g.accent);
+        const chips = document.createElement('div');
+        chips.className = 'mono-portfolio-chips';
+        g.items.forEach(({ text, chipAccent }) => {
+          const chip = document.createElement('span');
+          chip.className = 'mono-portfolio-chip';
+          chip.style.setProperty('--chip-accent', chipAccent);
+          chip.textContent = text;
+          chips.appendChild(chip);
+        });
+        li.appendChild(chips);
         ul.appendChild(li);
       });
     });
+    queueMicrotask(() => schedulePortfolioScrollHints());
   }
 
   function renderLog() {
@@ -1459,35 +1639,49 @@
     });
 
     center.innerHTML = `
-      <div class="mono-brand">
-        <span class="mono-brand-title">Bushwickopoly</span>
-        <span class="mono-brand-sub">the apartment hunt, gamified</span>
-      </div>
-      <div class="mono-dice" id="monoDice">🎲</div>
-      <div class="mono-cash-grid">
-        <div class="mono-cash-col mono-cash-col--human">
-          <span class="mono-cash-label">You</span>
-          <strong id="monoCashHuman">$0</strong>
-          <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioHuman" aria-label="Your listings"></ul>
+      <div class="mono-center-head">
+        <div class="mono-brand">
+          <span class="mono-brand-title">Bushwickopoly</span>
+          <span class="mono-brand-sub">the apartment hunt, gamified</span>
         </div>
-        <div class="mono-cash-col mono-cash-col--ai">
-          <span class="mono-cash-label">The Broker</span>
-          <strong id="monoCashAi">$0</strong>
-          <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioAi" aria-label="Broker listings"></ul>
+        <div class="mono-dice" id="monoDice">🎲</div>
+      </div>
+      <div class="mono-portfolio-region">
+        <div class="mono-cash-grid">
+          <div class="mono-cash-col mono-cash-col--human">
+            <span class="mono-cash-label">You</span>
+            <strong id="monoCashHuman">$0</strong>
+            <div class="mono-portfolio-shell" id="monoPortfolioHumanShell">
+              <span class="mono-portfolio-hint mono-portfolio-hint--up" hidden aria-hidden="true">···</span>
+              <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioHuman" aria-label="Your listings"></ul>
+              <span class="mono-portfolio-hint mono-portfolio-hint--down" hidden>More ↓</span>
+            </div>
+          </div>
+          <div class="mono-cash-col mono-cash-col--ai">
+            <span class="mono-cash-label">The Broker</span>
+            <strong id="monoCashAi">$0</strong>
+            <div class="mono-portfolio-shell" id="monoPortfolioAiShell">
+              <span class="mono-portfolio-hint mono-portfolio-hint--up" hidden aria-hidden="true">···</span>
+              <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioAi" aria-label="Broker listings"></ul>
+              <span class="mono-portfolio-hint mono-portfolio-hint--down" hidden>More ↓</span>
+            </div>
+          </div>
         </div>
       </div>
-      <p class="mono-prompt" id="monoPrompt"></p>
-      <div class="mono-actions">
-        <button type="button" class="cta-btn mono-action-btn" id="monoRoll">Roll</button>
-        <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoBuy">Buy</button>
-        <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoPass">Pass</button>
+      <div class="mono-center-footer">
+        <p class="mono-prompt" id="monoPrompt"></p>
+        <div class="mono-actions">
+          <button type="button" class="cta-btn mono-action-btn" id="monoRoll">Roll</button>
+          <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoBuy">Buy</button>
+          <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoPass">Pass</button>
+        </div>
+        <div class="mono-actions-jail" id="monoJailActions" hidden>
+          <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailPay">Pay fine</button>
+          <button type="button" class="cta-btn mono-action-btn" id="monoJailRoll">Roll for doubles</button>
+        </div>
+        <div class="mono-build" id="monoBuildRow"></div>
+        <ul class="mono-log mono-scrollbar-none" id="monoLog"></ul>
       </div>
-      <div class="mono-actions-jail" id="monoJailActions" hidden>
-        <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailPay">Pay fine</button>
-        <button type="button" class="cta-btn mono-action-btn" id="monoJailRoll">Roll for doubles</button>
-      </div>
-      <div class="mono-build" id="monoBuildRow"></div>
-      <ul class="mono-log mono-scrollbar-none" id="monoLog"></ul>
       <div class="mono-continue" id="monoContinue" hidden>
         <p>Saved game found.</p>
         <button type="button" class="cta-btn" id="monoContinueBtn">Continue</button>
@@ -1508,6 +1702,8 @@
     els.logEl = center.querySelector('#monoLog');
     els.cashHuman = center.querySelector('#monoCashHuman');
     els.cashAi = center.querySelector('#monoCashAi');
+    els.portfolioHumanShell = center.querySelector('#monoPortfolioHumanShell');
+    els.portfolioAiShell = center.querySelector('#monoPortfolioAiShell');
     els.portfolioHuman = center.querySelector('#monoPortfolioHuman');
     els.portfolioAi = center.querySelector('#monoPortfolioAi');
     els.buildRow = center.querySelector('#monoBuildRow');
@@ -1550,6 +1746,8 @@
     });
 
     wireDeedUI(root);
+    bindPortfolioScrollUi();
+    queueMicrotask(() => schedulePortfolioScrollHints());
   }
 
   function boot() {
