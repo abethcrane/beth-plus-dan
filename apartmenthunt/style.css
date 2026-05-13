@@ -1253,6 +1253,11 @@ header {
   color: #1a1a14;
 }
 
+/* .cta-btn sets display — must not override native [hidden] or Pay shows during Buy/Pass */
+.mono-actions .cta-btn[hidden] {
+  display: none !important;
+}
+
 .mono-actions .cta-btn:disabled,
 .mono-actions .cta-btn[disabled] {
   opacity: 0.35;

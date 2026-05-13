@@ -10,7 +10,13 @@
   const TRACKWORK_INDEX = 30;
   const JAIL_FINE = 1250;
   const PLAYERS = ['human', 'ai'];
-  const PLAYER_LABEL = { human: 'You', ai: 'The Broker' };
+  /** AI opponent in the UI — another buyer with capital, not “the villain broker”. */
+  const OPPONENT_ROLE = 'Investor';
+  const PLAYER_LABEL = { human: 'You', ai: `The ${OPPONENT_ROLE}` };
+
+  function opponentInProse() {
+    return `the ${OPPONENT_ROLE.toLowerCase()}`;
+  }
 
   /** @typedef {'corner'|'property'|'tax'|'transit'|'utility'|'nice'} SquareKind */
 
@@ -223,7 +229,7 @@
             : 'You own the monopoly — upgrades must stay even across this group.'
           : '';
 
-      const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned';
+      const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? PLAYER_LABEL.ai : 'Unowned';
       body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(ownerLabel)}</dd>`;
       if (owner) {
         const built = b.hotel ? 'Hotel' : `${b.houses} house${b.houses === 1 ? '' : 's'}`;
@@ -254,7 +260,7 @@
         '<p class="mono-deed-foot">Own every lot in this color — undeveloped rent doubles on those lots.</p>';
     } else if (sq.kind === 'transit' && sq.price != null) {
       const tiers = [625, 1250, 2500, 5000];
-      body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned')}</dd></dl>`;
+      body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(owner === 'human' ? 'You' : owner === 'ai' ? PLAYER_LABEL.ai : 'Unowned')}</dd></dl>`;
       body += '<table class="mono-deed-table"><tbody>';
       tiers.forEach((rent, i) => {
         body += `<tr><th scope="row">Rent if owner holds ${i + 1} line${i === 0 ? '' : 's'}</th><td>${formatMoney(rent)}</td></tr>`;
@@ -279,7 +285,7 @@
         body += '<p class="mono-deed-now"><strong>Mortgaged</strong> — no transit rent.</p>';
       }
     } else if (sq.kind === 'utility' && sq.price != null) {
-      const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? 'The Broker' : 'Unowned';
+      const ownerLabel = owner === 'human' ? 'You' : owner === 'ai' ? PLAYER_LABEL.ai : 'Unowned';
       body += `<dl class="mono-deed-meta"><dt>Listed</dt><dd>${formatMoney(sq.price)}</dd><dt>Owner</dt><dd>${escapeHtml(ownerLabel)}</dd></dl>`;
       body += `<p class="mono-deed-note">Classic utilities are dice × 4 or × 10; this board scales dollars by <strong>×${UTILITY_MONOPOLY_SCALE}</strong>, so rent is <strong>dice × ${UTILITY_PER_DICE_ONE}</strong> (one utility) or <strong>dice × ${UTILITY_PER_DICE_BOTH}</strong> (both).</p>`;
       const dice = state.lastDiceTotal ?? 7;
@@ -518,11 +524,17 @@
 
   function humanPortfolioLiquidityAllowed() {
     const ph = state.phase;
-    return ph === 'player_roll' || ph === 'player_buy' || ph === 'player_raise_cash';
+    return (
+      ph === 'player_roll' || ph === 'player_buy' || ph === 'player_raise_cash' || ph === 'player_jail'
+    );
   }
 
   function humanUnmortgageAllowed() {
-    return state.phase === 'player_roll' && state.paymentDue == null && state.winner == null;
+    return (
+      (state.phase === 'player_roll' || state.phase === 'player_jail') &&
+      state.paymentDue == null &&
+      state.winner == null
+    );
   }
 
   function rentMultiplier(houses, hotel) {
@@ -653,6 +665,8 @@
       mortgaged: {},
       paymentDue: null,
       paymentResume: null,
+      /** Whose turn to take actions: 0 = you, 1 = AI opponent (survives refresh). */
+      turnOwner: 0,
     };
   }
 
@@ -663,6 +677,75 @@
   let monoFooterDockBound = false;
   /** @type {number[]} Board indices with listing cards open below the board (order preserved). */
   let deedOpenOrder = [];
+  /** Debounce resuming AI turn after refresh / normalize (see normalizeTurnState). */
+  let monoAiResumeTimeout = null;
+
+  /** Canonical: on the shuttle corner token + inJail record means you must pay / roll doubles (not “just visiting”). */
+  function humanServingJail() {
+    return (
+      state.winner == null &&
+      state.positions[0] === JAIL_INDEX &&
+      state.inJail[0] != null &&
+      typeof state.inJail[0] === 'object'
+    );
+  }
+
+  function normalizeInJailSlot(raw) {
+    if (raw == null || typeof raw !== 'object') return null;
+    const fd = Number(raw.failedDoubles);
+    const failedDoubles = Number.isFinite(fd) ? Math.max(0, Math.min(3, Math.floor(fd))) : 0;
+    const fe = raw.forcedExitDice;
+    const n = Number(fe);
+    const forcedExitDice =
+      fe != null && Number.isFinite(n) ? Math.max(2, Math.min(12, Math.floor(n))) : null;
+    return { failedDoubles, forcedExitDice };
+  }
+
+  function renderHumanJailPrompt() {
+    const inj = state.inJail[0];
+    if (!inj) return;
+    const fd = inj.failedDoubles;
+    if (fd >= 3) {
+      const fe = inj.forcedExitDice;
+      renderPrompt(
+        fe != null
+          ? `You’re stuck on the shuttle — pay ${formatMoney(JAIL_FINE)} to leave, then move ${fe} spaces (your last roll).`
+          : `You’re stuck on the shuttle — pay ${formatMoney(JAIL_FINE)} to leave.`,
+      );
+    } else {
+      renderPrompt(
+        `On the shuttle bus — pay ${formatMoney(JAIL_FINE)} before rolling, or try doubles (${3 - fd} tries left).`,
+      );
+    }
+  }
+
+  /**
+   * Single source of truth: board + inJail drives phase, not the other way around.
+   * Skips mid-resolution states so animation / payment flows stay intact.
+   */
+  function reconcileHumanJailPhase() {
+    if (state.winner != null || state.phase === 'game_over') return;
+    if (
+      state.phase === 'player_buy' ||
+      state.phase === 'player_raise_cash' ||
+      state.phase === 'player_resolving'
+    ) {
+      return;
+    }
+    if (state.turnOwner !== 0) return;
+    const serving = humanServingJail();
+    if (serving && state.phase !== 'player_jail') {
+      state.phase = 'player_jail';
+      renderHumanJailPrompt();
+      return;
+    }
+    if (state.phase === 'player_jail' && !serving) {
+      state.phase = 'player_roll';
+      renderPrompt(
+        state.pendingDoublesExtraRoll ? 'Doubles — roll again.' : 'Your turn — roll the dice.',
+      );
+    }
+  }
 
   function log(line) {
     state.history.push(`${new Date().toISOString().slice(11, 19)} ${line}`);
@@ -677,6 +760,11 @@
     } catch (_) {}
   }
 
+  function ownershipAt(idx) {
+    if (!state.ownership || typeof state.ownership !== 'object') return undefined;
+    return state.ownership[idx];
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -685,9 +773,12 @@
       if (!o.positions || o.positions.length !== 2) return false;
       state = { ...initialState(), ...o };
       if (!state.history) state.history = [];
+      if (!state.ownership || typeof state.ownership !== 'object') state.ownership = {};
       if (!Array.isArray(state.inJail) || state.inJail.length !== 2) {
         state.inJail = [null, null];
       }
+      state.inJail[0] = normalizeInJailSlot(state.inJail[0]);
+      state.inJail[1] = normalizeInJailSlot(state.inJail[1]);
       if (typeof state.pendingDoublesExtraRoll !== 'boolean') state.pendingDoublesExtraRoll = false;
       if (typeof state.doublesRunHuman !== 'number') state.doublesRunHuman = 0;
       if (typeof state.doublesRunAi !== 'number') state.doublesRunAi = 0;
@@ -695,6 +786,28 @@
       if (!state.mortgaged || typeof state.mortgaged !== 'object') state.mortgaged = {};
       if (state.paymentDue != null && typeof state.paymentDue !== 'object') state.paymentDue = null;
       if (state.paymentResume != null && typeof state.paymentResume !== 'object') state.paymentResume = null;
+      if (state.paymentDue && state.paymentDue.resume == null && state.paymentResume != null) {
+        state.paymentDue.resume = state.paymentResume;
+      }
+      if (typeof state.turnOwner !== 'number' || state.turnOwner < 0 || state.turnOwner > 1) {
+        state.turnOwner = state.phase === 'ai_roll' ? 1 : 0;
+      }
+      if (humanServingJail()) {
+        state.turnOwner = 0;
+      }
+      const phases = new Set([
+        'player_roll',
+        'player_buy',
+        'player_jail',
+        'player_resolving',
+        'player_raise_cash',
+        'ai_roll',
+        'game_over',
+      ]);
+      if (!phases.has(state.phase)) {
+        state.phase = 'player_roll';
+      }
+      reconcileHumanJailPhase();
       return true;
     } catch (_) {
       return false;
@@ -706,6 +819,7 @@
     state.phase = 'game_over';
     state.paymentDue = null;
     state.paymentResume = null;
+    state.turnOwner = 0;
     state.bankruptDetail =
       detail && typeof detail.amount === 'number'
         ? { loser, amount: detail.amount, reason: detail.reason ?? '', balanceBefore: detail.balanceBefore ?? 0 }
@@ -726,7 +840,7 @@
 
     if (humanLost) {
       if (rentM) {
-        return `You owed the Broker ${amt} for landing on ${rentM[1]}, but only had ${had} on hand.`;
+        return `You owed ${opponentInProse()} ${amt} for landing on ${rentM[1]}, but only had ${had} on hand.`;
       }
       if (d.reason === 'Shuttle fine') {
         return `You owed ${amt} for the shuttle fine but only had ${had} on hand.`;
@@ -738,15 +852,15 @@
     }
 
     if (rentM) {
-      return `The Broker owed you ${amt} for landing on ${rentM[1]} but only had ${had} on hand.`;
+      return `${PLAYER_LABEL.ai} owed you ${amt} for landing on ${rentM[1]} but only had ${had} on hand.`;
     }
     if (d.reason === 'Shuttle fine') {
-      return `The Broker owed ${amt} for the shuttle fine but only had ${had} on hand.`;
+      return `${PLAYER_LABEL.ai} owed ${amt} for the shuttle fine but only had ${had} on hand.`;
     }
     if (d.reason) {
-      return `The Broker owed ${amt} (${d.reason}) but only had ${had} on hand.`;
+      return `${PLAYER_LABEL.ai} owed ${amt} (${d.reason}) but only had ${had} on hand.`;
     }
-    return `The Broker couldn’t cover ${amt} (had ${had}).`;
+    return `${PLAYER_LABEL.ai} couldn’t cover ${amt} (had ${had}).`;
   }
 
   function paymentResumeFromLandingPay(landingPayCtx) {
@@ -832,7 +946,7 @@
       if (state.winner != null) return;
       maybeAiBuild();
       if (r.wantsAnotherStreetRoll) {
-        renderPrompt('The Broker rolled doubles — going again…');
+        renderPrompt(`${PLAYER_LABEL.ai} rolled doubles — going again…`);
         save();
         renderAll();
         setTimeout(runAiTurn, 750);
@@ -896,6 +1010,8 @@
     state.cash[playerIdx] -= amount;
     if (!silent) {
       log(`${PLAYER_LABEL[PLAYERS[playerIdx]]} paid ${formatMoney(amount)} (${reason}).`);
+    } else if (silent && amount > 0) {
+      log(`${PLAYER_LABEL[PLAYERS[playerIdx]]} paid ${formatMoney(amount)} (${reason}).`);
     }
     if (payeeIdx != null && payeeIdx !== playerIdx && amount > 0) {
       state.cash[payeeIdx] += amount;
@@ -942,6 +1058,7 @@
       silent,
       payeeIdx,
       payer: playerIdx,
+      resume,
     };
     state.paymentResume = resume;
     state.phase = 'player_raise_cash';
@@ -953,17 +1070,32 @@
     renderAll();
   }
 
+  function defaultResumeFromPaymentDue(d) {
+    if (!d?.reason) return { mode: 'human_finish_or_double' };
+    if (d.reason === 'Shuttle fine') return { mode: 'human_jail_fine_roll' };
+    return { mode: 'human_finish_or_double' };
+  }
+
   function onPayDue() {
     if (state.phase !== 'player_raise_cash' || state.winner != null || !state.paymentDue) return;
     const d = state.paymentDue;
     if (state.cash[0] < d.amount) return;
+    const resumeSnap = d.resume ?? state.paymentResume ?? defaultResumeFromPaymentDue(d);
+    state.paymentResume = resumeSnap;
     applySettledPayment(0, d.amount, d.reason, d.silent, d.payeeIdx);
     executePaymentResume();
+    if (state.phase === 'player_raise_cash' && state.paymentDue == null) {
+      state.turnOwner = 0;
+      state.phase = 'player_resolving';
+      humanFinishLandOrDoubleOrEnd();
+      save();
+      renderAll();
+    }
   }
 
   function logLandfall(playerIdx, idx) {
     const sq = BOARD[idx];
-    const you = playerIdx === 0 ? 'You' : 'The Broker';
+    const you = playerIdx === 0 ? 'You' : PLAYER_LABEL.ai;
 
     if (sq.kind === 'tax') {
       log(`${you} landed on ${sq.name} (pay ${formatMoney(sq.tax)}).`);
@@ -988,7 +1120,7 @@
 
     if (owner === me) {
       log(
-        `${you} landed on ${sq.name} (${playerIdx === 0 ? 'you own this' : 'Broker already owns this'}).`,
+        `${you} landed on ${sq.name} (${playerIdx === 0 ? 'you own this' : `${PLAYER_LABEL.ai} already owns this`}).`,
       );
       return;
     }
@@ -996,16 +1128,16 @@
     const rent = computeRent(idx, state.ownership, state.buildings);
     if (state.mortgaged[idx]) {
       if (playerIdx === 0) {
-        log(`${you} landed on ${sq.name} (the Broker owns this — mortgaged, no rent).`);
+        log(`${you} landed on ${sq.name} (${opponentInProse()} owns this — mortgaged, no rent).`);
       } else {
         log(`${you} landed on ${sq.name} (you own this — listing mortgaged, no rent).`);
       }
       return;
     }
     if (playerIdx === 0) {
-      log(`${you} landed on ${sq.name} (the Broker owns this — paid ${formatMoney(rent)} rent).`);
+      log(`${you} landed on ${sq.name} (${opponentInProse()} owns this — ${formatMoney(rent)} rent due).`);
     } else {
-      log(`${you} landed on ${sq.name} (you own this — Broker paid ${formatMoney(rent)} rent).`);
+      log(`${you} landed on ${sq.name} (you own this — ${PLAYER_LABEL.ai} owes ${formatMoney(rent)} rent).`);
     }
   }
 
@@ -1124,8 +1256,9 @@
     if (state.winner != null) return;
     state.doublesRunHuman = 0;
     state.pendingDoublesExtraRoll = false;
+    state.turnOwner = 1;
     state.phase = 'ai_roll';
-    renderPrompt('The Broker is thinking…');
+    renderPrompt(`${PLAYER_LABEL.ai} is thinking…`);
     save();
     renderHud();
     setTimeout(runAiTurn, 700);
@@ -1177,7 +1310,7 @@
           if (state.winner != null) return;
           maybeAiBuild();
           if (wantsAnotherStreetRoll) {
-            renderPrompt('The Broker rolled doubles — going again…');
+            renderPrompt(`${PLAYER_LABEL.ai} rolled doubles — going again…`);
             save();
             renderAll();
             setTimeout(runAiTurn, 750);
@@ -1237,22 +1370,11 @@
 
   function beginHumanTurn() {
     if (state.winner != null) return;
+    state.turnOwner = 0;
     state.doublesRunAi = 0;
     if (state.positions[0] === JAIL_INDEX && state.inJail[0]) {
       state.phase = 'player_jail';
-      const fd = state.inJail[0].failedDoubles;
-      if (fd >= 3) {
-        const fe = state.inJail[0].forcedExitDice;
-        renderPrompt(
-          fe != null
-            ? `You’re stuck on the shuttle — pay ${formatMoney(JAIL_FINE)} to leave, then move ${fe} spaces (your last roll).`
-            : `You’re stuck on the shuttle — pay ${formatMoney(JAIL_FINE)} to leave.`,
-        );
-      } else {
-        renderPrompt(
-          `On the shuttle bus — pay ${formatMoney(JAIL_FINE)} before rolling, or try doubles (${3 - fd} tries left).`,
-        );
-      }
+      renderHumanJailPrompt();
     } else {
       state.phase = 'player_roll';
       renderPrompt('Your turn — roll the dice.');
@@ -1281,7 +1403,17 @@
   }
 
   function onJailPayFine() {
-    if (state.phase !== 'player_jail' || state.winner != null) return;
+    if (state.winner != null || state.turnOwner !== 0 || !humanServingJail()) return;
+    if (
+      state.phase === 'player_raise_cash' ||
+      state.phase === 'player_resolving' ||
+      state.phase === 'player_buy'
+    ) {
+      return;
+    }
+    if (state.phase !== 'player_jail') {
+      state.phase = 'player_jail';
+    }
     const inj = state.inJail[0];
     const forced = inj?.forcedExitDice;
     settlePayment(0, JAIL_FINE, 'Shuttle fine', false, {
@@ -1294,7 +1426,17 @@
   }
 
   function onJailRollDoubles() {
-    if (state.phase !== 'player_jail' || state.winner != null) return;
+    if (state.winner != null || state.turnOwner !== 0 || !humanServingJail()) return;
+    if (
+      state.phase === 'player_raise_cash' ||
+      state.phase === 'player_resolving' ||
+      state.phase === 'player_buy'
+    ) {
+      return;
+    }
+    if (state.phase !== 'player_jail') {
+      state.phase = 'player_jail';
+    }
     const inj = state.inJail[0];
     if (!inj || inj.failedDoubles >= 3) return;
     state.phase = 'player_resolving';
@@ -1402,8 +1544,103 @@
     endPlayerTurn();
   }
 
+  function scheduleAiTurnResume() {
+    if (monoAiResumeTimeout != null) clearTimeout(monoAiResumeTimeout);
+    monoAiResumeTimeout = setTimeout(() => {
+      monoAiResumeTimeout = null;
+      if (state.winner != null || state.phase !== 'ai_roll' || state.turnOwner !== 1) return;
+      runAiTurn();
+    }, 120);
+  }
+
+  /** After load/Continue or a corrupted phase, align `phase` / `turnOwner` and resume the AI turn if it’s theirs. */
+  function normalizeTurnState() {
+    if (state.winner != null || !els.rollBtn) return;
+    if (typeof state.turnOwner !== 'number' || state.turnOwner < 0 || state.turnOwner > 1) {
+      state.turnOwner = state.phase === 'ai_roll' ? 1 : 0;
+    }
+    if (humanServingJail()) {
+      state.turnOwner = 0;
+    }
+    /** Saves during dice / movement leave `player_resolving`; no UI handles that on refresh. */
+    if (state.phase === 'player_resolving') {
+      if (state.turnOwner === 0) {
+        if (humanServingJail()) {
+          state.phase = 'player_jail';
+        } else {
+          const ridx = state.positions[0];
+          const rsq = BOARD[ridx];
+          if (rsq?.price != null && !ownershipAt(ridx)) {
+            state.phase = 'player_buy';
+          } else {
+            state.phase = 'player_roll';
+          }
+        }
+      } else {
+        state.turnOwner = 1;
+        state.phase = 'ai_roll';
+      }
+      save();
+    }
+    if (
+      state.phase === 'player_buy' ||
+      state.phase === 'player_jail' ||
+      (state.phase === 'player_raise_cash' && state.paymentDue)
+    ) {
+      state.turnOwner = 0;
+    }
+    reconcileHumanJailPhase();
+    if (state.phase === 'player_buy' && state.turnOwner === 0 && !humanServingJail()) {
+      const idx = state.positions[0];
+      const sq = BOARD[idx];
+      if (sq?.price == null || ownershipAt(idx)) {
+        state.phase = 'player_roll';
+        save();
+      }
+    }
+    if (
+      state.turnOwner === 0 &&
+      state.phase === 'player_roll' &&
+      !humanServingJail() &&
+      state.winner == null &&
+      !state.pendingDoublesExtraRoll
+    ) {
+      const idx = state.positions[0];
+      const sq = BOARD[idx];
+      if (sq?.price != null && !ownershipAt(idx)) {
+        state.phase = 'player_buy';
+        save();
+      }
+    }
+    if (state.phase === 'player_raise_cash' && state.paymentDue == null) {
+      state.turnOwner = 0;
+      state.phase = 'player_resolving';
+      humanFinishLandOrDoubleOrEnd();
+      save();
+      renderAll();
+      return;
+    }
+    if (state.turnOwner === 0) {
+      if (state.phase === 'ai_roll') {
+        beginHumanTurn();
+        save();
+        renderAll();
+      }
+      return;
+    }
+    if (state.phase === 'player_roll' || state.phase === 'player_resolving') {
+      state.phase = 'ai_roll';
+      state.paymentResume = null;
+      save();
+      renderHud();
+    }
+    if (state.turnOwner === 1 && state.phase === 'ai_roll') {
+      scheduleAiTurnResume();
+    }
+  }
+
   function onRoll() {
-    if (state.phase !== 'player_roll' || state.winner != null) return;
+    if (state.phase !== 'player_roll' || state.winner != null || state.turnOwner !== 0) return;
     state.phase = 'player_resolving';
     state.pendingDoublesExtraRoll = false;
     renderHud();
@@ -1462,7 +1699,7 @@
     state.ownership[idx] = 'human';
     log(`You bought ${sq.name} for ${formatMoney(sq.price)}.`);
     state.phase = 'player_roll';
-    renderPrompt(rollAgain ? 'Doubles — roll again.' : 'Nice pick — Broker’s turn.');
+    renderPrompt(rollAgain ? 'Doubles — roll again.' : `Nice pick — ${PLAYER_LABEL.ai}'s turn.`);
     save();
     renderAll();
     if (rollAgain) return;
@@ -1476,7 +1713,7 @@
     state.pendingDoublesExtraRoll = false;
     log(`You passed on ${BOARD[idx].name}.`);
     state.phase = 'player_roll';
-    renderPrompt(rollAgain ? 'Doubles — roll again.' : 'Okay — Broker’s turn.');
+    renderPrompt(rollAgain ? 'Doubles — roll again.' : `Okay — ${PLAYER_LABEL.ai}'s turn.`);
     save();
     renderAll();
     if (rollAgain) return;
@@ -1518,7 +1755,44 @@
   }
 
   function renderPrompt(text) {
+    if (!els.promptEl) return;
     els.promptEl.textContent = text;
+  }
+
+  function renderPlayerBuyPrompt() {
+    const idx = state.positions[0];
+    const sq = BOARD[idx];
+    if (state.phase !== 'player_buy' || sq?.price == null || ownershipAt(idx)) return;
+    const name = sq.name.replace(/\n/g, ' ');
+    const affordable = state.cash[0] >= sq.price;
+    renderPrompt(
+      affordable
+        ? `${name} — ${formatMoney(sq.price)}. Buy it?`
+        : `${name} is ${formatMoney(sq.price)} — you have ${formatMoney(state.cash[0])} (${formatMoney(sq.price - state.cash[0])} short). Raise cash in your portfolio (mortgage / sell upgrades), then Buy or Pass.`,
+    );
+  }
+
+  /** After dismissing the continue overlay, re-derive prompt text from `phase` (boot overwrites it with “Continue…”). */
+  function syncHudPromptToPhase(ph) {
+    if (state.winner != null) return;
+    if (ph === 'player_raise_cash' && state.paymentDue) return;
+    if (ph === 'player_buy') {
+      renderPlayerBuyPrompt();
+      return;
+    }
+    if (ph === 'player_jail' && humanServingJail()) {
+      renderHumanJailPrompt();
+      return;
+    }
+    if (ph === 'player_roll' && state.turnOwner === 0 && !humanServingJail()) {
+      renderPrompt(
+        state.pendingDoublesExtraRoll ? 'Doubles — roll again.' : 'Your turn — roll the dice.',
+      );
+      return;
+    }
+    if (ph === 'ai_roll' && state.turnOwner === 1) {
+      renderPrompt(`${PLAYER_LABEL.ai} is thinking…`);
+    }
   }
 
   /** Accent color for HUD “On: …” line (matches board group / tile semantics). */
@@ -1799,15 +2073,24 @@
       state.winner != null ||
       ph === 'player_buy' ||
       ph === 'player_jail' ||
+      (state.turnOwner === 0 && humanServingJail()) ||
       ph === 'player_resolving' ||
-      ph === 'player_raise_cash';
+      ph === 'player_raise_cash' ||
+      ph === 'ai_roll';
     els.rollBtn.hidden = hideRoll;
 
-    const rollInteractive = ph === 'player_roll';
+    const rollInteractive = ph === 'player_roll' && !humanServingJail();
     els.rollBtn.disabled = paused || state.winner != null || !rollInteractive;
 
     const showBuyPass = !paused && ph === 'player_buy' && state.winner == null;
-    const showJail = !paused && ph === 'player_jail' && state.winner == null;
+    const showJail =
+      !paused &&
+      state.turnOwner === 0 &&
+      state.winner == null &&
+      humanServingJail() &&
+      ph !== 'player_raise_cash' &&
+      ph !== 'player_buy' &&
+      ph !== 'player_resolving';
     const showPayDue = !paused && ph === 'player_raise_cash' && state.winner == null && state.paymentDue;
 
     els.payDueBtn.hidden = !showPayDue;
@@ -1815,6 +2098,16 @@
       const due = state.paymentDue.amount;
       els.payDueBtn.textContent = `Pay ${formatMoney(due)}`;
       els.payDueBtn.disabled = state.cash[0] < due;
+    }
+
+    if (!paused && ph === 'player_raise_cash' && state.paymentDue) {
+      const d = state.paymentDue;
+      const short = Math.max(0, d.amount - state.cash[0]);
+      renderPrompt(
+        short > 0
+          ? `You owe ${formatMoney(d.amount)} (${d.reason}). Raise ${formatMoney(short)} more — mortgage listings or sell upgrades in your portfolio, then tap Pay.`
+          : `You owe ${formatMoney(d.amount)} (${d.reason}). Tap Pay to settle.`,
+      );
     }
 
     els.buyBtn.hidden = !showBuyPass;
@@ -1843,10 +2136,11 @@
       els.jailActions.hidden = !showJail;
       els.jailPayBtn.textContent = `Pay ${formatMoney(JAIL_FINE)} fine`;
       const inj = state.inJail[0];
-      const mustPayDoubles = inj && inj.failedDoubles >= 3;
-      els.jailRollBtn.hidden = mustPayDoubles;
-      els.jailPayBtn.disabled = paused || mustPayDoubles || !inj;
-      els.jailRollBtn.disabled = paused || mustPayDoubles || !inj;
+      const noMoreDoublesRolls = inj && inj.failedDoubles >= 3;
+      els.jailRollBtn.hidden = noMoreDoublesRolls;
+      // Fine is always allowed while in jail (optional before 3rd miss; required after).
+      els.jailPayBtn.disabled = paused || !inj;
+      els.jailRollBtn.disabled = paused || noMoreDoublesRolls || !inj;
     }
 
     els.buildRow.innerHTML = '';
@@ -1865,6 +2159,10 @@
       btn.addEventListener('click', () => onBuildPick(idx));
       els.buildRow.appendChild(btn);
     });
+
+    if (!paused && state.winner == null && els.promptEl) {
+      syncHudPromptToPhase(ph);
+    }
   }
 
   function updatePieces() {
@@ -2089,11 +2387,11 @@
             </div>
           </div>
           <div class="mono-cash-col mono-cash-col--ai">
-            <span class="mono-cash-label">The Broker</span>
+            <span class="mono-cash-label">${PLAYER_LABEL.ai}</span>
             <strong id="monoCashAi">$0</strong>
             <div class="mono-portfolio-shell" id="monoPortfolioAiShell">
               <span class="mono-portfolio-hint mono-portfolio-hint--up" hidden aria-hidden="true">···</span>
-              <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioAi" aria-label="Broker listings"></ul>
+              <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioAi" aria-label="${PLAYER_LABEL.ai} listings"></ul>
               <span class="mono-portfolio-hint mono-portfolio-hint--down" hidden>More ↓</span>
             </div>
           </div>
@@ -2171,6 +2469,7 @@
     });
     center.querySelector('#monoContinueBtn').addEventListener('click', () => {
       els.continueWrap.hidden = true;
+      normalizeTurnState();
       renderAll();
     });
     center.querySelector('#monoNewBtn').addEventListener('click', () => {
@@ -2195,13 +2494,32 @@
     buildBoardDOM();
     const had = load();
     if (had && state.winner == null) {
-      els.continueWrap.hidden = false;
-      renderPrompt('Continue your saved game or start fresh.');
+      normalizeTurnState();
+      /** Full-screen gate hides Buy/Roll/Jail/Pay; skip it when the save already needs those controls. */
+      if (loadedSaveNeedsImmediateHumanHud()) {
+        els.continueWrap.hidden = true;
+      } else {
+        els.continueWrap.hidden = false;
+        renderPrompt('Continue your saved game or start fresh.');
+      }
     } else {
+      els.continueWrap.hidden = true;
       if (!had) log('Welcome — roll to start.');
       renderPrompt(state.winner != null ? 'Game over — play again?' : 'Your turn — roll the dice.');
+      queueMicrotask(() => normalizeTurnState());
     }
     renderAll();
+  }
+
+  /** After refresh: if we’re in a human decision / roll state, never block the board behind “Continue…”. */
+  function loadedSaveNeedsImmediateHumanHud() {
+    if (state.winner != null) return false;
+    if (state.phase === 'player_buy') return true;
+    if (state.phase === 'player_jail') return true;
+    if (state.phase === 'player_raise_cash' && state.paymentDue) return true;
+    if (state.phase === 'player_roll' && state.turnOwner === 0) return true;
+    if (state.phase === 'player_resolving' && state.turnOwner === 0) return true;
+    return false;
   }
 
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', boot) : boot();
