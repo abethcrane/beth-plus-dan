@@ -1717,6 +1717,19 @@ header {
     padding-left: 1rem;
     padding-right: 1rem;
   }
+
+  /* One scroll (page / section) — no nested scroll areas in hub */
+  .mono-expand-body {
+    max-height: none;
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+
+  .mono-log {
+    max-height: none;
+    overflow-x: visible;
+    overflow-y: visible;
+  }
 }
 
 @media (max-width: 560px) {
