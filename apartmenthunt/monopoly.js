@@ -534,6 +534,14 @@
     return true;
   }
 
+  /** Half of house/hotel cost — matches `sellOneBuilding`. */
+  function sellBackRefundFor(idx) {
+    const b = state.buildings[idx] || { houses: 0, hotel: false };
+    if (b.hotel) return Math.floor(hotelCostFor(idx) / 2);
+    if (b.houses > 0) return Math.floor(houseCostFor(idx) / 2);
+    return 0;
+  }
+
   function humanPortfolioLiquidityAllowed() {
     const ph = state.phase;
     return (
@@ -716,10 +724,15 @@
         !paused &&
         canSellHere('human', idx, state.ownership, state.buildings)
       ) {
+        const bSell = state.buildings[idx] || { houses: 0, hotel: false };
+        const ref = sellBackRefundFor(idx);
         const sb = document.createElement('button');
         sb.type = 'button';
         sb.className = 'mono-mini-btn';
-        sb.textContent = 'Sell upgrade';
+        sb.textContent = bSell.hotel
+          ? `Sell hotel · +${formatMoney(ref)}`
+          : `Sell house · +${formatMoney(ref)}`;
+        sb.title = 'You get half of what you paid for this upgrade (bank buys it back).';
         sb.disabled = state.winner != null;
         sb.addEventListener('click', () => sellOneBuilding('human', idx));
         row.appendChild(sb);
@@ -2510,8 +2523,12 @@
   }
 
   function renderHud() {
-    els.cashHuman.textContent = formatMoney(state.cash[0]);
-    els.cashAi.textContent = formatMoney(state.cash[1]);
+    const humanBal = formatMoney(state.cash[0]);
+    const aiBal = formatMoney(state.cash[1]);
+    els.cashHuman.textContent = humanBal;
+    els.cashAi.textContent = aiBal;
+    if (els.cashHumanDock) els.cashHumanDock.textContent = humanBal;
+    if (els.cashAiDock) els.cashAiDock.textContent = aiBal;
     renderHumanCurrentSquareHud();
     renderPortfolios();
     const paused = els.continueWrap && !els.continueWrap.hidden;
@@ -2655,16 +2672,16 @@
       let ox = 0;
       let oy = 0;
       if (dup) {
-        ox = pi === 0 ? -4 : 4;
-        oy = pi === 0 ? -4 : 4;
+        ox = pi === 0 ? -9 : 9;
+        oy = pi === 0 ? -9 : 9;
       }
       if (bothShuttle) {
-        ox = pi === 0 ? -3 : 3;
-        oy = pi === 0 ? -3 : 3;
+        ox = pi === 0 ? -8 : 8;
+        oy = pi === 0 ? -8 : 8;
       }
       if (bothVisit) {
-        ox = pi === 0 ? -4 : 4;
-        oy = pi === 0 ? -4 : 4;
+        ox = pi === 0 ? -9 : 9;
+        oy = pi === 0 ? -9 : 9;
       }
       piece.style.transform = ox || oy ? `translate(${ox}px,${oy}px)` : '';
       slot.appendChild(piece);
@@ -2820,10 +2837,20 @@
     center.innerHTML = `
       <div class="mono-center-head">
         <div class="mono-brand">
-          <span class="mono-brand-title">Bushwickopoly</span>
-          <span class="mono-brand-sub">the apartment hunt, gamified</span>
+          <span class="mono-brand-title">Monopoly</span>
+          <span class="mono-brand-sub">Bushwick/Ridgewood edition</span>
         </div>
         <div class="mono-dice" id="monoDice">🎲</div>
+        <div class="mono-cash-dock" role="status" aria-label="Cash on hand">
+          <div class="mono-cash-dock-pill mono-cash-dock-pill--human">
+            <span class="mono-cash-dock-label">You</span>
+            <strong class="mono-cash-dock-amt" id="monoCashHumanDock">$0</strong>
+          </div>
+          <div class="mono-cash-dock-pill mono-cash-dock-pill--ai">
+            <span class="mono-cash-dock-label">${PLAYER_LABEL.ai}</span>
+            <strong class="mono-cash-dock-amt" id="monoCashAiDock">$0</strong>
+          </div>
+        </div>
       </div>
       <div class="mono-portfolio-region">
         <div class="mono-cash-grid">
@@ -2925,6 +2952,8 @@
     els.logEl = center.querySelector('#monoLog');
     els.cashHuman = center.querySelector('#monoCashHuman');
     els.cashAi = center.querySelector('#monoCashAi');
+    els.cashHumanDock = center.querySelector('#monoCashHumanDock');
+    els.cashAiDock = center.querySelector('#monoCashAiDock');
     els.portfolioHumanShell = center.querySelector('#monoPortfolioHumanShell');
     els.portfolioAiShell = center.querySelector('#monoPortfolioAiShell');
     els.portfolioHuman = center.querySelector('#monoPortfolioHuman');

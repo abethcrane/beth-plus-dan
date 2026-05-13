@@ -550,8 +550,8 @@ header {
 }
 
 .mono-jail-inner-pieces .mono-piece {
-  width: 28%;
-  max-width: 18px;
+  width: 63%;
+  max-width: 41px;
 }
 
 .mono-cell--owned-human::after {
@@ -673,12 +673,13 @@ header {
 }
 
 .mono-piece {
-  width: 22%;
-  max-width: 22px;
+  width: 50%;
+  max-width: 50px;
   aspect-ratio: 1;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border: none;
+  border-radius: 7px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -690,11 +691,39 @@ header {
   display: block;
 }
 
-.mono-piece--human {
+/* Photo tokens: thin player-color ring + dark inner mat */
+.mono-piece--human:has(> img),
+.mono-piece--ai:has(> img) {
+  padding: 3px;
+}
+
+.mono-piece--human:has(> img) {
+  background:
+    linear-gradient(165deg, #3d454e 0%, #1a1e24 100%) content-box,
+    var(--accent) border-box;
+  background-clip: content-box, border-box;
+}
+
+.mono-piece--ai:has(> img) {
+  background:
+    linear-gradient(165deg, #3d454e 0%, #1a1e24 100%) content-box,
+    var(--warm) border-box;
+  background-clip: content-box, border-box;
+}
+
+.mono-piece:has(> img) img {
+  object-fit: contain;
+  border-radius: 3px;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65)) contrast(1.12) brightness(1.08);
+}
+
+.mono-piece--human:not(:has(> img)) {
+  border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, var(--accent-light), var(--accent));
 }
 
-.mono-piece--ai {
+.mono-piece--ai:not(:has(> img)) {
+  border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, var(--warm-light), var(--warm));
 }
 
@@ -904,6 +933,58 @@ header {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  margin: -0.65rem -0.75rem 0.35rem;
+  padding: 0.65rem 0.75rem 0.45rem;
+  background: rgba(15, 14, 11, 0.97);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mono-cash-dock {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0.4rem 0.55rem;
+}
+
+.mono-cash-dock-pill {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: min(140px, 42%);
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.mono-cash-dock-pill--human {
+  justify-content: flex-start;
+}
+
+.mono-cash-dock-pill--ai {
+  justify-content: flex-end;
+}
+
+.mono-cash-dock-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.mono-cash-dock-amt {
+  font-size: clamp(0.85rem, 2.8vw, 1rem);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .mono-portfolio-region {
@@ -996,7 +1077,7 @@ header {
   gap: 0.65rem 1rem;
   align-items: stretch;
   width: 100%;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-height: 0;
   font-size: 0.72rem;
   color: var(--text-muted);
@@ -1290,7 +1371,7 @@ header {
 .mono-expand {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(12, 11, 9, 0.55);
+  background: rgba(18, 17, 14, 0.92);
   overflow: hidden;
 }
 
@@ -1345,10 +1426,11 @@ header {
 .mono-expand-body {
   padding: 0.45rem 0.55rem 0.55rem;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
-  max-height: min(42vh, 280px);
+  max-height: min(38vh, 240px);
   overflow-x: hidden;
   overflow-y: auto;
   font-size: 0.72rem;
+  background: rgba(14, 13, 11, 0.88);
 }
 
 .mono-expand-body[hidden] {
@@ -1734,7 +1816,7 @@ header {
 
   .mono-board-wrap .mono-cell--jail-corner .mono-jail-inner-pieces .mono-piece {
     width: auto;
-    max-width: 20px;
+    max-width: 45px;
     flex-shrink: 0;
   }
 }
