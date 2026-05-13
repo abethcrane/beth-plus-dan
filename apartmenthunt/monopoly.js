@@ -410,7 +410,7 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      if (closeMonoPanel()) return;
+      if (collapseMonoExpands()) return;
       if (!els.deedTray || els.deedTray.hidden) return;
       closeAllDeedTiles();
     });
@@ -547,6 +547,474 @@
       state.paymentDue == null &&
       state.winner == null
     );
+  }
+
+  /** @returns {string|null} null if a house/hotel can be placed here under Monopoly rules (cash / phase checks separate). */
+  function humanBuildDisabledReason(idx) {
+    const sq = BOARD[idx];
+    if (sq.kind !== 'property' || state.ownership[idx] !== 'human') return 'Not your listing.';
+    const b = state.buildings[idx] || { houses: 0, hotel: false };
+    if (b.hotel) return 'Already a hotel.';
+    if (!hasMonopoly('human', sq.group, state.ownership)) return 'Own every lot in this color to build.';
+    if (groupHasMortgaged('human', sq.group)) return 'Unmortgage this color group first.';
+    if (canBuildHere('human', idx, state.ownership, state.buildings)) return null;
+    if (b.houses === 4)
+      return 'Other lots in this color need 4 houses each before any hotel.';
+    return 'Even building: add to shorter lots in this color first.';
+  }
+
+  function formatGroupTitle(groupKey) {
+    if (groupKey === '__transit') return 'Transit';
+    if (groupKey === '__utility') return 'Utilities';
+    if (groupKey === '__misc') return 'Other';
+    return String(groupKey)
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  function humanCanBuildThisTurn() {
+    return (
+      state.phase === 'player_roll' &&
+      state.turnOwner === 0 &&
+      state.winner == null &&
+      !humanServingJail()
+    );
+  }
+
+  function monoHudPaused() {
+    return els.continueWrap && !els.continueWrap.hidden;
+  }
+
+  /** Inline sections below jail actions (not modals). */
+  let monoExpandDevelop = false;
+  let monoExpandFinance = false;
+
+  function collapseMonoExpands() {
+    let ch = false;
+    if (monoExpandDevelop) {
+      monoExpandDevelop = false;
+      ch = true;
+    }
+    if (monoExpandFinance) {
+      monoExpandFinance = false;
+      ch = true;
+    }
+    if (ch) syncMonoExpandShell();
+    return ch;
+  }
+
+  function syncMonoExpandShell() {
+    const dOpen = monoExpandDevelop;
+    const fOpen = monoExpandFinance;
+    if (els.developExpandWrap) {
+      els.developExpandWrap.classList.toggle('mono-expand--open', dOpen);
+    }
+    if (els.developExpandBody) {
+      els.developExpandBody.hidden = !dOpen;
+      els.developExpandBody.setAttribute('aria-hidden', dOpen ? 'false' : 'true');
+    }
+    if (els.developExpandToggle) {
+      els.developExpandToggle.setAttribute('aria-expanded', dOpen ? 'true' : 'false');
+    }
+    if (els.financeExpandWrap) {
+      els.financeExpandWrap.classList.toggle('mono-expand--open', fOpen);
+    }
+    if (els.financeExpandBody) {
+      els.financeExpandBody.hidden = !fOpen;
+      els.financeExpandBody.setAttribute('aria-hidden', fOpen ? 'false' : 'true');
+    }
+    if (els.financeExpandToggle) {
+      els.financeExpandToggle.setAttribute('aria-expanded', fOpen ? 'true' : 'false');
+    }
+  }
+
+  function refreshMonoExpandBodies() {
+    if (monoExpandDevelop) renderDevelopPanelBody();
+    if (monoExpandFinance) renderFinancePanelBody();
+  }
+
+  /** Listing chip: same vibe as portfolio — toggles deed tray. */
+  function makeListingChipButton(idx) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'mono-portfolio-chip mono-li-chip';
+    chip.style.setProperty('--chip-accent', portfolioAccentColor(idx));
+    if (state.mortgaged[idx]) chip.classList.add('mono-portfolio-chip--mortgaged');
+    chip.textContent = portfolioLineFor(idx);
+    chip.title = 'Open listing card';
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.winner != null) return;
+      toggleDeedTile(idx);
+      renderAll();
+    });
+    return chip;
+  }
+
+  function financeBlockedReason(idx) {
+    const sq = BOARD[idx];
+    if (state.ownership[idx] !== 'human' || state.mortgaged[idx]) return null;
+    if (canMortgage(0, idx)) return null;
+    if (sq.kind === 'property') {
+      if (maxGroupH('human', sq.group, state.ownership, state.buildings) > 0)
+        return 'Sell buildings on this color first.';
+    }
+    if (sq.price == null) return 'Not mortgagable.';
+    return 'Cannot mortgage.';
+  }
+
+  function buildDeedActionBarEl(idx) {
+    const owner = state.ownership[idx];
+    const sq = BOARD[idx];
+    const wrap = document.createElement('div');
+    wrap.className = 'mono-deed-actions';
+
+    if (owner !== 'human') {
+      if (owner === 'ai' && sq.price != null) {
+        const p = document.createElement('p');
+        p.className = 'mono-deed-actions-note';
+        p.textContent = `${PLAYER_LABEL.ai} holds this listing.`;
+        wrap.appendChild(p);
+      }
+      return wrap.childElementCount ? wrap : null;
+    }
+
+    const paused = monoHudPaused();
+    const row = document.createElement('div');
+    row.className = 'mono-deed-actions-row';
+
+    if (sq.kind === 'property' && sq.price != null) {
+      const b = state.buildings[idx] || { houses: 0, hotel: false };
+      if (!b.hotel) {
+        const nextIsHotel = b.houses === 4 && !b.hotel;
+        const nextCost = nextIsHotel ? hotelCostFor(idx) : houseCostFor(idx);
+        const reason = humanBuildDisabledReason(idx);
+        const canAct = humanCanBuildThisTurn() && !paused;
+        const affordable = state.cash[0] >= nextCost;
+        const canClick = canAct && reason == null && affordable;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mono-mini-btn mono-deed-act';
+        btn.textContent = nextIsHotel
+          ? `Hotel · ${formatMoney(nextCost)}`
+          : `House · ${formatMoney(nextCost)} · ${b.houses}/4`;
+        btn.disabled = !canClick || state.winner != null;
+        if (!canAct) {
+          btn.title = humanServingJail()
+            ? 'Finish shuttle / roll first.'
+            : 'Roll first — building is between moves.';
+        } else if (reason) btn.title = reason;
+        else if (!affordable) btn.title = `Need ${formatMoney(nextCost - state.cash[0])} more.`;
+        else btn.title = '';
+        btn.addEventListener('click', () => onBuildPick(idx));
+        row.appendChild(btn);
+      }
+
+      if (
+        humanPortfolioLiquidityAllowed() &&
+        !paused &&
+        canSellHere('human', idx, state.ownership, state.buildings)
+      ) {
+        const sb = document.createElement('button');
+        sb.type = 'button';
+        sb.className = 'mono-mini-btn';
+        sb.textContent = 'Sell upgrade';
+        sb.disabled = state.winner != null;
+        sb.addEventListener('click', () => sellOneBuilding('human', idx));
+        row.appendChild(sb);
+      }
+    }
+
+    if (sq.price != null && (sq.kind === 'property' || sq.kind === 'transit' || sq.kind === 'utility')) {
+      if (humanPortfolioLiquidityAllowed() && !paused && canMortgage(0, idx)) {
+        const mb = document.createElement('button');
+        mb.type = 'button';
+        mb.className = 'mono-mini-btn';
+        mb.textContent = `Mortgage +${formatMoney(mortgageValueFor(idx))}`;
+        mb.disabled = state.winner != null;
+        mb.addEventListener('click', () => applyMortgage(0, idx));
+        row.appendChild(mb);
+      }
+      if (state.mortgaged[idx]) {
+        const ub = document.createElement('button');
+        ub.type = 'button';
+        ub.className = 'mono-mini-btn';
+        ub.textContent = `Unmortgage ${formatMoney(unmortgageCostFor(idx))}`;
+        const umOk = humanUnmortgageAllowed() && canUnmortgage(0, idx);
+        ub.disabled = !umOk || state.winner != null || paused;
+        if (!paused) {
+          if (!humanUnmortgageAllowed())
+            ub.title = state.paymentDue
+              ? 'Pay or raise cash for your current bill first.'
+              : 'Between rolls only.';
+          else if (!canUnmortgage(0, idx))
+            ub.title = `Need ${formatMoney(unmortgageCostFor(idx) - state.cash[0])} more.`;
+        }
+        ub.addEventListener('click', () => applyUnmortgage(0, idx));
+        row.appendChild(ub);
+      }
+    }
+
+    if (row.childElementCount) wrap.appendChild(row);
+    return wrap.childElementCount ? wrap : null;
+  }
+
+  function renderDevelopPanelBody() {
+    if (!els.developExpandBody) return;
+    els.developExpandBody.replaceChildren();
+    const paused = monoHudPaused();
+    const groups = portfolioGroupsFor('human').filter((g) =>
+      g.items.some(({ idx: i }) => BOARD[i].kind === 'property'),
+    );
+    if (groups.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'mono-panel-empty';
+      p.textContent = 'No title listings yet. Buy a full color set to unlock builds.';
+      els.developExpandBody.appendChild(p);
+      return;
+    }
+
+    const foot = document.createElement('p');
+    foot.className = 'mono-panel-foot';
+    foot.textContent =
+      'Mortgage trains & utilities, or unmortgage, from Financing — or use buttons on an open listing card.';
+
+    for (const g of groups) {
+      const propItems = g.items.filter(({ idx: i }) => BOARD[i].kind === 'property');
+      if (propItems.length === 0) continue;
+
+      const section = document.createElement('section');
+      section.className = 'mono-dev-section';
+
+      const head = document.createElement('div');
+      head.className = 'mono-dev-head';
+      const strip = document.createElement('div');
+      strip.className = 'mono-dev-strip';
+      strip.style.background = g.accent;
+      const h = document.createElement('h4');
+      h.className = 'mono-dev-title';
+      h.textContent = formatGroupTitle(g.groupKey);
+      head.appendChild(strip);
+      head.appendChild(h);
+      section.appendChild(head);
+
+      for (const { idx } of propItems) {
+        const sq = BOARD[idx];
+        const b = state.buildings[idx] || { houses: 0, hotel: false };
+        const row = document.createElement('div');
+        row.className = 'mono-dev-row';
+
+        const chipWrap = document.createElement('div');
+        chipWrap.className = 'mono-dev-chipwrap';
+        chipWrap.appendChild(makeListingChipButton(idx));
+
+        const actions = document.createElement('div');
+        actions.className = 'mono-dev-actions';
+
+        if (b.hotel) {
+          const sp = document.createElement('span');
+          sp.className = 'mono-dev-hint';
+          sp.textContent = 'Maxed';
+          actions.appendChild(sp);
+        } else if (!hasMonopoly('human', sq.group, state.ownership)) {
+          const sp = document.createElement('span');
+          sp.className = 'mono-dev-hint';
+          sp.textContent = 'Need monopoly';
+          actions.appendChild(sp);
+        } else {
+          const inList = humanBuildableProps().includes(idx);
+          const nextIsHotel = b.houses === 4 && !b.hotel;
+          const nextCost = nextIsHotel ? hotelCostFor(idx) : houseCostFor(idx);
+          const canAct = humanCanBuildThisTurn() && !paused;
+          const affordable = state.cash[0] >= nextCost;
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mono-mini-btn';
+          btn.textContent = nextIsHotel
+            ? `Hotel · ${formatMoney(nextCost)}`
+            : `House · ${formatMoney(nextCost)}`;
+          const canGo = canAct && inList && affordable && state.winner == null;
+          btn.disabled = !canGo;
+          const br = humanBuildDisabledReason(idx);
+          if (!canAct)
+            btn.title = humanServingJail() ? 'Finish on the shuttle first.' : 'Roll when it is your turn.';
+          else if (br) btn.title = br;
+          else if (!affordable) btn.title = `Need ${formatMoney(nextCost - state.cash[0])} more.`;
+          else if (!inList)
+            btn.title = 'Even building rule — upgrade another lot in this color first.';
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onBuildPick(idx);
+          });
+          actions.appendChild(btn);
+        }
+
+        row.appendChild(chipWrap);
+        row.appendChild(actions);
+        section.appendChild(row);
+      }
+      els.developExpandBody.appendChild(section);
+    }
+    els.developExpandBody.appendChild(foot);
+  }
+
+  function renderFinancePanelBody() {
+    if (!els.financeExpandBody) return;
+    els.financeExpandBody.replaceChildren();
+    const paused = monoHudPaused();
+
+    /** @type {{ idx: number }[]} */
+    const lift = [];
+    /** @type {{ idx: number }[]} */
+    const raise = [];
+    /** @type {{ idx: number, reason: string }[]} */
+    const blocked = [];
+
+    BOARD.forEach((sq, idx) => {
+      if (state.ownership[idx] !== 'human') return;
+      if (sq.kind !== 'property' && sq.kind !== 'transit' && sq.kind !== 'utility') return;
+      if (sq.price == null) return;
+      if (state.mortgaged[idx]) lift.push({ idx });
+      else if (canMortgage(0, idx)) raise.push({ idx });
+      else blocked.push({ idx, reason: financeBlockedReason(idx) || 'Cannot mortgage.' });
+    });
+
+    const makeSection = (title, classMod) => {
+      const sec = document.createElement('section');
+      sec.className = `mono-fin-section mono-fin-section--${classMod}`;
+      const h = document.createElement('h4');
+      h.className = 'mono-fin-heading';
+      h.textContent = title;
+      sec.appendChild(h);
+      return sec;
+    };
+
+    const addRow = (container, idx, extras) => {
+      const row = document.createElement('div');
+      row.className = 'mono-fin-row';
+      const chipWrap = document.createElement('div');
+      chipWrap.className = 'mono-fin-chipwrap';
+      chipWrap.appendChild(makeListingChipButton(idx));
+      row.appendChild(chipWrap);
+      const slot = document.createElement('div');
+      slot.className = 'mono-fin-slot';
+      extras(slot);
+      row.appendChild(slot);
+      container.appendChild(row);
+    };
+
+    if (lift.length === 0 && raise.length === 0 && blocked.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'mono-panel-empty';
+      p.textContent = 'No listings to finance yet.';
+      els.financeExpandBody.appendChild(p);
+      return;
+    }
+
+    if (lift.length) {
+      const sec = makeSection('Unmortgage (restore rent)', 'lift');
+      const list = document.createElement('div');
+      list.className = 'mono-fin-list';
+      lift.forEach(({ idx }) => {
+        addRow(list, idx, (slot) => {
+          const cost = unmortgageCostFor(idx);
+          const umOk = humanUnmortgageAllowed() && canUnmortgage(0, idx);
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mono-mini-btn';
+          btn.textContent = `Pay ${formatMoney(cost)}`;
+          btn.disabled = !umOk || state.winner != null || paused;
+          if (!paused) {
+            if (!humanUnmortgageAllowed())
+              btn.title = state.paymentDue
+                ? 'Pay or raise cash for your current bill first.'
+                : 'Between rolls only.';
+            else if (!canUnmortgage(0, idx))
+              btn.title = `Need ${formatMoney(cost - state.cash[0])} more.`;
+          }
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            applyUnmortgage(0, idx);
+          });
+          slot.appendChild(btn);
+        });
+      });
+      sec.appendChild(list);
+      els.financeExpandBody.appendChild(sec);
+    }
+
+    if (raise.length) {
+      const sec = makeSection('Mortgage (raise cash)', 'raise');
+      const list = document.createElement('div');
+      list.className = 'mono-fin-list';
+      raise.forEach(({ idx }) => {
+        addRow(list, idx, (slot) => {
+          const gain = mortgageValueFor(idx);
+          const ok = humanPortfolioLiquidityAllowed();
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mono-mini-btn';
+          btn.textContent = `+${formatMoney(gain)}`;
+          btn.disabled = !ok || state.winner != null || paused;
+          if (!ok) btn.title = 'Not available during this phase.';
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            applyMortgage(0, idx);
+          });
+          slot.appendChild(btn);
+        });
+      });
+      sec.appendChild(list);
+      els.financeExpandBody.appendChild(sec);
+    }
+
+    if (blocked.length) {
+      const sec = makeSection('Cannot mortgage yet', 'blocked');
+      const list = document.createElement('div');
+      list.className = 'mono-fin-list';
+      blocked.forEach(({ idx, reason }) => {
+        addRow(list, idx, (slot) => {
+          const sp = document.createElement('span');
+          sp.className = 'mono-fin-reason';
+          sp.textContent = reason;
+          slot.appendChild(sp);
+        });
+      });
+      sec.appendChild(list);
+      els.financeExpandBody.appendChild(sec);
+    }
+
+    const foot = document.createElement('p');
+    foot.className = 'mono-panel-foot';
+    foot.textContent =
+      'Tap a listing chip to pin its card under the board — same actions as here. Collapse a section with the row header.';
+    els.financeExpandBody.appendChild(foot);
+  }
+
+  function wireMonoExpandSections(center) {
+    els.developExpandWrap = center.querySelector('#monoDevelopExpand');
+    els.developExpandToggle = center.querySelector('#monoDevelopToggle');
+    els.developExpandBody = center.querySelector('#monoDevelopBody');
+    els.financeExpandWrap = center.querySelector('#monoFinanceExpand');
+    els.financeExpandToggle = center.querySelector('#monoFinanceToggle');
+    els.financeExpandBody = center.querySelector('#monoFinanceBody');
+    els.developBadge = center.querySelector('#monoDevelopBadge');
+
+    els.developExpandToggle?.addEventListener('click', () => {
+      if (els.developExpandToggle.disabled) return;
+      monoExpandDevelop = !monoExpandDevelop;
+      syncMonoExpandShell();
+      refreshMonoExpandBodies();
+    });
+    els.financeExpandToggle?.addEventListener('click', () => {
+      if (els.financeExpandToggle.disabled) return;
+      monoExpandFinance = !monoExpandFinance;
+      syncMonoExpandShell();
+      refreshMonoExpandBodies();
+    });
+    syncMonoExpandShell();
   }
 
   function rentMultiplier(houses, hotel) {
@@ -1746,7 +2214,8 @@
   }
 
   function onBuildPick(idx) {
-    if (state.phase !== 'player_roll' || state.winner != null) return;
+    if (state.phase !== 'player_roll' || state.winner != null || humanServingJail() || state.turnOwner !== 0)
+      return;
     const sq = BOARD[idx];
     const b = state.buildings[idx] || { houses: 0, hotel: false };
     if (b.houses === 4 && !b.hotel) {
@@ -1780,7 +2249,7 @@
     renderPrompt(
       affordable
         ? `${name} — ${formatMoney(sq.price)}. Buy it?`
-        : `${name} is ${formatMoney(sq.price)} — you have ${formatMoney(state.cash[0])} (${formatMoney(sq.price - state.cash[0])} short). Raise cash in your portfolio (mortgage / sell upgrades), then Buy or Pass.`,
+        : `${name} is ${formatMoney(sq.price)} — you have ${formatMoney(state.cash[0])} (${formatMoney(sq.price - state.cash[0])} short). Raise cash (Financing or a listing card), then Buy or Pass.`,
     );
   }
 
@@ -2013,45 +2482,14 @@
           chip.textContent = text;
           item.appendChild(chip);
           if (key === 'human') {
-            const pausedRow = els.continueWrap && !els.continueWrap.hidden;
-            const liquidity = humanPortfolioLiquidityAllowed() && !pausedRow;
-            const actions = document.createElement('div');
-            actions.className = 'mono-portfolio-actions';
-            if (liquidity && canSellHere('human', idx, state.ownership, state.buildings)) {
-              const sb = document.createElement('button');
-              sb.type = 'button';
-              sb.className = 'mono-mini-btn mono-portfolio-act mono-portfolio-act--sell';
-              sb.textContent = 'Sell';
-              sb.addEventListener('click', () => {
-                if (!humanPortfolioLiquidityAllowed() || state.winner != null) return;
-                sellOneBuilding('human', idx);
-              });
-              actions.appendChild(sb);
-            }
-            if (liquidity && canMortgage(0, idx)) {
-              const mb = document.createElement('button');
-              mb.type = 'button';
-              mb.className = 'mono-mini-btn mono-portfolio-act mono-portfolio-act--mortgage';
-              mb.textContent = `Mortgage +${formatMoney(mortgageValueFor(idx))}`;
-              mb.addEventListener('click', () => {
-                if (!humanPortfolioLiquidityAllowed() || state.winner != null) return;
-                applyMortgage(0, idx);
-              });
-              actions.appendChild(mb);
-            }
-            if (humanUnmortgageAllowed() && state.mortgaged[idx]) {
-              const ub = document.createElement('button');
-              ub.type = 'button';
-              ub.className = 'mono-mini-btn mono-portfolio-act mono-portfolio-act--unmortgage';
-              ub.textContent = `Unmortgage ${formatMoney(unmortgageCostFor(idx))}`;
-              ub.disabled = pausedRow || !canUnmortgage(0, idx);
-              ub.addEventListener('click', () => {
-                if (!humanUnmortgageAllowed() || state.winner != null) return;
-                applyUnmortgage(0, idx);
-              });
-              actions.appendChild(ub);
-            }
-            if (actions.childNodes.length) item.appendChild(actions);
+            item.style.cursor = 'pointer';
+            item.title = 'Open listing card';
+            item.addEventListener('click', (ev) => {
+              if (ev.target.closest('button')) return;
+              if (state.winner != null) return;
+              toggleDeedTile(idx);
+              renderAll();
+            });
           }
           chips.appendChild(item);
         });
@@ -2077,6 +2515,7 @@
     renderHumanCurrentSquareHud();
     renderPortfolios();
     const paused = els.continueWrap && !els.continueWrap.hidden;
+    if (paused || state.winner != null) collapseMonoExpands();
     const sq = BOARD[state.positions[0]];
     const ph = state.phase;
 
@@ -2117,7 +2556,7 @@
       const short = Math.max(0, d.amount - state.cash[0]);
       renderPrompt(
         short > 0
-          ? `You owe ${formatMoney(d.amount)} (${d.reason}). Raise ${formatMoney(short)} more — mortgage listings or sell upgrades in your portfolio, then tap Pay.`
+          ? `You owe ${formatMoney(d.amount)} (${d.reason}). Raise ${formatMoney(short)} more — open Financing or a listing card (mortgage / sell upgrades), then tap Pay.`
           : `You owe ${formatMoney(d.amount)} (${d.reason}). Tap Pay to settle.`,
       );
     }
@@ -2155,22 +2594,20 @@
       els.jailRollBtn.disabled = paused || noMoreDoublesRolls || !inj;
     }
 
-    els.buildRow.innerHTML = '';
-    const opts = humanBuildableProps();
-    opts.forEach((idx) => {
-      const sqP = BOARD[idx];
-      const b = state.buildings[idx] || { houses: 0, hotel: false };
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'mono-mini-btn';
-      const nextCost = b.houses === 4 && !b.hotel ? hotelCostFor(idx) : houseCostFor(idx);
-      const label = b.houses === 4 && !b.hotel ? `Hotel ${sqP.name.split(' ').slice(0, 3).join(' ')}` : `House (${b.houses}/4) ${sqP.name.split(' ').slice(0, 2).join(' ')}`;
-      btn.textContent = `${label} · ${formatMoney(nextCost)}`;
-      btn.disabled =
-        paused || state.cash[0] < nextCost || ph !== 'player_roll' || state.winner != null;
-      btn.addEventListener('click', () => onBuildPick(idx));
-      els.buildRow.appendChild(btn);
-    });
+    const nBuild = humanBuildableProps().length;
+    if (els.developBadge) {
+      els.developBadge.textContent = nBuild > 0 ? String(nBuild) : '';
+      els.developBadge.hidden = nBuild === 0 || state.winner != null;
+    }
+    const mgmtLocked = paused || state.winner != null;
+    if (els.developExpandToggle) {
+      els.developExpandToggle.disabled = mgmtLocked;
+      els.developExpandToggle.title = paused ? 'Continue or start a new game first.' : '';
+    }
+    if (els.financeExpandToggle) {
+      els.financeExpandToggle.disabled = mgmtLocked;
+      els.financeExpandToggle.title = els.developExpandToggle?.title ?? '';
+    }
 
     if (!paused && state.winner == null && els.promptEl) {
       syncHudPromptToPhase(ph);
@@ -2254,6 +2691,7 @@
     renderLog();
     updatePieces();
     if (deedOpenOrder.length > 0 && els.deedTray) renderDeedTray();
+    refreshMonoExpandBodies();
     els.gameOverEl.hidden = state.winner == null;
     if (state.winner != null) {
       els.gameOverText.textContent = winnerHeadline(PLAYERS[state.winner]);
@@ -2422,7 +2860,45 @@
           <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailPay">Pay fine</button>
           <button type="button" class="cta-btn mono-action-btn" id="monoJailRoll">Roll for doubles</button>
         </div>
-        <div class="mono-build" id="monoBuildRow"></div>
+        <div class="mono-expand-stack">
+          <div class="mono-expand" id="monoDevelopExpand">
+            <button
+              type="button"
+              class="mono-expand-toggle"
+              id="monoDevelopToggle"
+              aria-expanded="false"
+              aria-controls="monoDevelopBody"
+            >
+              <span class="mono-expand-chevron" aria-hidden="true">›</span>
+              <span class="mono-expand-label">Develop</span>
+              <span class="mono-mgmt-badge" id="monoDevelopBadge" hidden></span>
+            </button>
+            <div
+              class="mono-expand-body mono-scrollbar-none"
+              id="monoDevelopBody"
+              hidden
+              aria-hidden="true"
+            ></div>
+          </div>
+          <div class="mono-expand" id="monoFinanceExpand">
+            <button
+              type="button"
+              class="mono-expand-toggle"
+              id="monoFinanceToggle"
+              aria-expanded="false"
+              aria-controls="monoFinanceBody"
+            >
+              <span class="mono-expand-chevron" aria-hidden="true">›</span>
+              <span class="mono-expand-label">Financing</span>
+            </button>
+            <div
+              class="mono-expand-body mono-scrollbar-none"
+              id="monoFinanceBody"
+              hidden
+              aria-hidden="true"
+            ></div>
+          </div>
+        </div>
         <ul class="mono-log mono-scrollbar-none" id="monoLog"></ul>
       </div>
       <div class="mono-continue" id="monoContinue" hidden>
@@ -2453,7 +2929,6 @@
     els.portfolioAiShell = center.querySelector('#monoPortfolioAiShell');
     els.portfolioHuman = center.querySelector('#monoPortfolioHuman');
     els.portfolioAi = center.querySelector('#monoPortfolioAi');
-    els.buildRow = center.querySelector('#monoBuildRow');
     els.continueWrap = center.querySelector('#monoContinue');
     els.gameOverEl = center.querySelector('#monoGameOver');
     els.gameOverText = center.querySelector('#monoGameOverText');
@@ -2468,7 +2943,9 @@
     els.payDueBtn.addEventListener('click', onPayDue);
     els.jailPayBtn.addEventListener('click', onJailPayFine);
     els.jailRollBtn.addEventListener('click', onJailRollDoubles);
+    wireMonoExpandSections(center);
     center.querySelector('#monoResetBtn').addEventListener('click', () => {
+      collapseMonoExpands();
       closeAllDeedTiles();
       state = initialState();
       save();
@@ -2485,6 +2962,7 @@
       renderAll();
     });
     center.querySelector('#monoNewBtn').addEventListener('click', () => {
+      collapseMonoExpands();
       closeAllDeedTiles();
       state = initialState();
       save();

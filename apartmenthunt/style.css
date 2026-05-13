@@ -731,14 +731,13 @@ header {
 
 .mono-deed-tile {
   position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 248px;
   max-width: 340px;
   min-width: min(248px, 100%);
   max-height: min(78vh, 560px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow: hidden;
   border-radius: 11px;
   border: 3px solid #252422;
   background: linear-gradient(165deg, #fdfaf4 0%, #ebe2cf 100%);
@@ -1276,10 +1275,318 @@ header {
 }
 
 .mono-build {
+  display: none;
+}
+
+/* Develop / Financing — inline expand sections */
+.mono-expand-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.2rem;
+  width: 100%;
+}
+
+.mono-expand {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 11, 9, 0.55);
+  overflow: hidden;
+}
+
+.mono-expand-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.42rem 0.55rem 0.42rem 0.45rem;
+  border: none;
+  background: rgba(28, 26, 22, 0.75);
+  color: var(--warm-light);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mono-expand-toggle:hover:not(:disabled) {
+  background: rgba(40, 36, 30, 0.88);
+}
+
+.mono-expand-toggle:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.mono-expand-chevron {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 1.1rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform 0.15s ease;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.mono-expand--open .mono-expand-chevron {
+  transform: rotate(90deg);
+}
+
+.mono-expand-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.mono-expand-body {
+  padding: 0.45rem 0.55rem 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  max-height: min(42vh, 280px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-size: 0.72rem;
+}
+
+.mono-expand-body[hidden] {
+  display: none !important;
+}
+
+.mono-mgmt-badge {
+  display: inline-block;
+  margin-left: 0.15rem;
+  padding: 0.05rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  background: var(--warm);
+  color: #1a1a14;
+  vertical-align: middle;
+}
+
+.mono-li-chip {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.2rem 0.38rem;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.mono-li-chip:hover {
+  filter: brightness(1.06);
+}
+
+.mono-panel-empty {
+  margin: 0.5rem 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.mono-panel-foot {
+  margin: 0.75rem 0 0;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  opacity: 0.92;
+}
+
+.mono-dev-section {
+  margin-bottom: 0.85rem;
+}
+
+.mono-dev-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.mono-dev-strip {
+  width: 6px;
+  align-self: stretch;
+  min-height: 1.5rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.mono-dev-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mono-dev-chipwrap {
+  min-width: 0;
+}
+
+.mono-dev-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.72rem;
+}
+
+.mono-dev-row:last-child {
+  border-bottom: none;
+}
+
+.mono-dev-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mono-dev-actions .mono-mini-btn {
+  font-size: 0.6rem;
+  white-space: nowrap;
+}
+
+.mono-dev-hint {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-align: right;
+  max-width: 9.5rem;
+  line-height: 1.2;
+}
+
+.mono-fin-section {
+  margin-bottom: 0.85rem;
+}
+
+.mono-fin-heading {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 253, 245, 0.76);
+}
+
+.mono-fin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mono-fin-chipwrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.mono-fin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.32rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.72rem;
+}
+
+.mono-fin-row:last-child {
+  border-bottom: none;
+}
+
+.mono-fin-slot {
+  flex-shrink: 0;
+}
+
+.mono-fin-slot .mono-mini-btn {
+  font-size: 0.62rem;
+}
+
+.mono-fin-reason {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.25;
+  max-width: 11rem;
+}
+
+.mono-deed-tile-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mono-deed-tile-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.mono-deed-tile-scroll:last-child {
+  border-radius: 11px;
+}
+
+.mono-deed-tile .mono-deed-tile-scroll:not(:last-child) {
+  border-radius: 11px 11px 0 0;
+}
+
+.mono-deed-actions {
+  flex-shrink: 0;
+  border-top: 2px solid rgba(37, 36, 34, 0.35);
+  background: linear-gradient(180deg, #e8dfd0 0%, #dcd3c4 100%);
+  padding: 0.45rem 0.5rem 0.55rem;
+  border-radius: 0 0 9px 9px;
+}
+
+.mono-deed-actions-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   justify-content: center;
+}
+
+.mono-deed-actions-note {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  text-align: center;
+  color: #4a4743;
+  font-weight: 600;
+}
+
+.mono-deed-actions .mono-mini-btn {
+  font-size: 0.62rem;
+}
+
+@media (max-width: 480px) {
+  .mono-dev-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .mono-dev-actions {
+    justify-content: flex-start;
+  }
+
+  .mono-fin-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mono-fin-slot {
+    align-self: flex-end;
+  }
 }
 
 .mono-mini-btn {
@@ -1442,7 +1749,7 @@ header {
 .mono-gameover {
   position: absolute;
   inset: 0;
-  background: rgba(15, 14, 11, 0.92);
+  background: rgba(15, 14, 11, 0.5);
   backdrop-filter: blur(8px);
   border-radius: 10px;
   flex-direction: column;
