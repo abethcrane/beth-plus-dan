@@ -14,6 +14,10 @@
   const OPPONENT_ROLE = 'Investor';
   const PLAYER_LABEL = { human: 'You', ai: `The ${OPPONENT_ROLE}` };
 
+  function winnerHeadline(winnerKey) {
+    return winnerKey === 'human' ? 'You won!' : `${PLAYER_LABEL[winnerKey]} wins.`;
+  }
+
   function opponentInProse() {
     return `the ${OPPONENT_ROLE.toLowerCase()}`;
   }
@@ -356,8 +360,13 @@
       art.className = 'mono-deed-tile';
       art.dataset.boardIdx = String(idx);
       art.setAttribute('aria-label', `${BOARD[idx].name.replace(/\n/g, ' ')} listing`);
-      art.innerHTML = buildDeedCardMarkup(idx);
-      art.querySelector('.mono-deed-tile-close')?.addEventListener('click', () => removeDeedTile(idx));
+      const scroll = document.createElement('div');
+      scroll.className = 'mono-deed-tile-scroll';
+      scroll.innerHTML = buildDeedCardMarkup(idx);
+      scroll.querySelector('.mono-deed-tile-close')?.addEventListener('click', () => removeDeedTile(idx));
+      art.appendChild(scroll);
+      const foot = buildDeedActionBarEl(idx);
+      if (foot) art.appendChild(foot);
       els.deedTray.appendChild(art);
     });
   }
@@ -401,6 +410,7 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      if (closeMonoPanel()) return;
       if (!els.deedTray || els.deedTray.hidden) return;
       closeAllDeedTiles();
     });
@@ -480,6 +490,7 @@
   }
 
   function applyMortgage(playerIdx, idx) {
+    if (playerIdx === 0 && !humanPortfolioLiquidityAllowed()) return false;
     if (!canMortgage(playerIdx, idx)) return false;
     const m = mortgageValueFor(idx);
     state.mortgaged[idx] = true;
@@ -491,6 +502,7 @@
   }
 
   function applyUnmortgage(playerIdx, idx) {
+    if (playerIdx === 0 && !humanUnmortgageAllowed()) return false;
     const c = unmortgageCostFor(idx);
     if (!canUnmortgage(playerIdx, idx)) return false;
     state.cash[playerIdx] -= c;
@@ -824,7 +836,7 @@
       detail && typeof detail.amount === 'number'
         ? { loser, amount: detail.amount, reason: detail.reason ?? '', balanceBefore: detail.balanceBefore ?? 0 }
         : null;
-    state.history.push(`${new Date().toISOString().slice(11, 19)} ${PLAYER_LABEL[PLAYERS[loser]]} is tapped out. ${PLAYER_LABEL[PLAYERS[state.winner]]} wins.`);
+    state.history.push(`${new Date().toISOString().slice(11, 19)} ${PLAYER_LABEL[PLAYERS[loser]]} is tapped out. ${winnerHeadline(PLAYERS[state.winner])}`);
     if (state.history.length > 80) state.history.shift();
     save();
     renderLog();
@@ -2244,7 +2256,7 @@
     if (deedOpenOrder.length > 0 && els.deedTray) renderDeedTray();
     els.gameOverEl.hidden = state.winner == null;
     if (state.winner != null) {
-      els.gameOverText.textContent = `${PLAYER_LABEL[PLAYERS[state.winner]]} wins.`;
+      els.gameOverText.textContent = winnerHeadline(PLAYERS[state.winner]);
       const sub = gameOverSubtext(state.bankruptDetail);
       if (els.gameOverDetail) {
         els.gameOverDetail.textContent = sub;
