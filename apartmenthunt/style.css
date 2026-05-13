@@ -1746,6 +1746,12 @@ header {
 }
 
 @media (max-width: 640px) {
+  /* Board frame matches HUD black — reads as one surface on a small screen */
+  .mono-board {
+    background: rgba(15, 14, 11, 0.96);
+    backdrop-filter: none;
+  }
+
   .mono-portfolio-region {
     display: none;
   }
