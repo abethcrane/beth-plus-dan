@@ -529,12 +529,18 @@ header {
   align-items: center;
   justify-content: center;
   font-family: var(--handwriting);
-  font-size: clamp(7px, 0.85vw, 11px);
+  font-size: clamp(6px, 0.74vw, 9.75px);
   color: #ffd4b8;
   text-align: center;
   line-height: 1.12;
   padding: 3px;
+  letter-spacing: -0.025em;
   min-height: 0;
+  min-width: 0;
+  align-self: stretch;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 
 .mono-jail-inner-pieces {
@@ -954,7 +960,7 @@ header {
 .mono-cash-dock-pill {
   display: flex;
   flex: 1 1 auto;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   gap: 0.35rem;
   min-width: min(140px, 42%);
@@ -962,6 +968,16 @@ header {
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.22);
+}
+
+.mono-cash-dock-pill .mono-piece {
+  width: 1.28rem;
+  max-width: 1.28rem;
+  flex-shrink: 0;
+}
+
+.mono-cash-dock-pill .mono-piece img {
+  border-radius: 2px;
 }
 
 .mono-cash-dock-pill--human {
@@ -1099,19 +1115,6 @@ header {
 .mono-cash-col--ai {
   justify-self: end;
   text-align: right;
-}
-
-.mono-cash-label {
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-muted);
-}
-
-.mono-cash-grid strong {
-  display: block;
-  color: var(--text);
-  font-size: 1.05rem;
-  font-weight: 700;
 }
 
 .mono-portfolio-shell {

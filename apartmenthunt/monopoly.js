@@ -2525,8 +2525,6 @@
   function renderHud() {
     const humanBal = formatMoney(state.cash[0]);
     const aiBal = formatMoney(state.cash[1]);
-    els.cashHuman.textContent = humanBal;
-    els.cashAi.textContent = aiBal;
     if (els.cashHumanDock) els.cashHumanDock.textContent = humanBal;
     if (els.cashAiDock) els.cashAiDock.textContent = aiBal;
     renderHumanCurrentSquareHud();
@@ -2843,10 +2841,12 @@
         <div class="mono-dice" id="monoDice">🎲</div>
         <div class="mono-cash-dock" role="status" aria-label="Cash on hand">
           <div class="mono-cash-dock-pill mono-cash-dock-pill--human">
+            <span class="mono-cash-dock-piece mono-piece mono-piece--human" aria-hidden="true"><img alt="" decoding="async" /></span>
             <span class="mono-cash-dock-label">You</span>
             <strong class="mono-cash-dock-amt" id="monoCashHumanDock">$0</strong>
           </div>
           <div class="mono-cash-dock-pill mono-cash-dock-pill--ai">
+            <span class="mono-cash-dock-piece mono-piece mono-piece--ai" aria-hidden="true"><img alt="" decoding="async" /></span>
             <span class="mono-cash-dock-label">${PLAYER_LABEL.ai}</span>
             <strong class="mono-cash-dock-amt" id="monoCashAiDock">$0</strong>
           </div>
@@ -2855,8 +2855,6 @@
       <div class="mono-portfolio-region">
         <div class="mono-cash-grid">
           <div class="mono-cash-col mono-cash-col--human">
-            <span class="mono-cash-label">You</span>
-            <strong id="monoCashHuman">$0</strong>
             <div class="mono-portfolio-shell" id="monoPortfolioHumanShell">
               <span class="mono-portfolio-hint mono-portfolio-hint--up" hidden aria-hidden="true">···</span>
               <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioHuman" aria-label="Your listings"></ul>
@@ -2864,8 +2862,6 @@
             </div>
           </div>
           <div class="mono-cash-col mono-cash-col--ai">
-            <span class="mono-cash-label">${PLAYER_LABEL.ai}</span>
-            <strong id="monoCashAi">$0</strong>
             <div class="mono-portfolio-shell" id="monoPortfolioAiShell">
               <span class="mono-portfolio-hint mono-portfolio-hint--up" hidden aria-hidden="true">···</span>
               <ul class="mono-portfolio mono-scrollbar-none" id="monoPortfolioAi" aria-label="${PLAYER_LABEL.ai} listings"></ul>
@@ -2940,6 +2936,11 @@
       </div>
     `;
 
+    const dockHumanPieceImg = center.querySelector('.mono-cash-dock-pill--human .mono-cash-dock-piece img');
+    const dockAiPieceImg = center.querySelector('.mono-cash-dock-pill--ai .mono-cash-dock-piece img');
+    if (dockHumanPieceImg && root.dataset.pieceHuman) dockHumanPieceImg.src = root.dataset.pieceHuman;
+    if (dockAiPieceImg && root.dataset.pieceAi) dockAiPieceImg.src = root.dataset.pieceAi;
+
     els.centerEl = center;
     els.centerFooter = center.querySelector('.mono-center-footer');
     els.diceEl = center.querySelector('#monoDice');
@@ -2950,8 +2951,6 @@
     els.passBtn = center.querySelector('#monoPass');
     els.payDueBtn = center.querySelector('#monoPayDue');
     els.logEl = center.querySelector('#monoLog');
-    els.cashHuman = center.querySelector('#monoCashHuman');
-    els.cashAi = center.querySelector('#monoCashAi');
     els.cashHumanDock = center.querySelector('#monoCashHumanDock');
     els.cashAiDock = center.querySelector('#monoCashAiDock');
     els.portfolioHumanShell = center.querySelector('#monoPortfolioHumanShell');
