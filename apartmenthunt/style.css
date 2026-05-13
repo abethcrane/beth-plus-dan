@@ -1274,6 +1274,38 @@ header {
   opacity: 0.82;
 }
 
+.mono-overview-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.35rem 0.15rem 0.15rem;
+}
+
+.mono-overview-player-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.mono-overview-col--ai .mono-overview-player-label {
+  text-align: right;
+}
+
+.mono-overview-col--ai .mono-portfolio {
+  text-align: right;
+}
+
+.mono-overview-col--ai .mono-portfolio-group {
+  flex-direction: row-reverse;
+}
+
+.mono-overview-col--ai .mono-portfolio-chips {
+  justify-content: flex-end;
+}
+
 .mono-cell--mortgaged.mono-cell--property .mono-strip,
 .mono-cell--mortgaged.mono-cell--transit,
 .mono-cell--mortgaged.mono-cell--utility {
@@ -1291,6 +1323,10 @@ header {
 @media (min-width: 641px) {
   .mono-prompt {
     min-height: 2.5rem;
+  }
+
+  #monoListingsExpand {
+    display: none;
   }
 }
 
@@ -1710,9 +1746,43 @@ header {
 }
 
 @media (max-width: 640px) {
+  .mono-portfolio-region {
+    display: none;
+  }
+
   .mono-portfolio-shell {
     max-height: 5rem;
     flex: 0 1 auto;
+  }
+
+  .mono-portfolio-shell--overview {
+    max-height: none;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .mono-portfolio-shell--overview .mono-portfolio {
+    overflow: visible;
+    max-height: none;
+    flex: 0 0 auto;
+    margin-top: 0;
+    padding: 4px 2px 8px;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .mono-portfolio-shell--overview .mono-portfolio-chip {
+    padding: 0.14rem 0.42rem;
+    border-radius: 6px;
+    font-size: 0.88em;
+  }
+
+  .mono-portfolio-shell--overview .mono-portfolio-chips {
+    gap: 0.32rem 0.45rem;
+  }
+
+  .mono-portfolio-shell--overview .mono-portfolio-group {
+    margin-bottom: 0.4rem;
   }
 
   .mono-action-btn {

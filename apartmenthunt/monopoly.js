@@ -596,6 +596,7 @@
   /** Inline sections below jail actions (not modals). */
   let monoExpandDevelop = false;
   let monoExpandFinance = false;
+  let monoExpandListings = false;
 
   function collapseMonoExpands() {
     let ch = false;
@@ -607,6 +608,10 @@
       monoExpandFinance = false;
       ch = true;
     }
+    if (monoExpandListings) {
+      monoExpandListings = false;
+      ch = true;
+    }
     if (ch) syncMonoExpandShell();
     return ch;
   }
@@ -614,6 +619,7 @@
   function syncMonoExpandShell() {
     const dOpen = monoExpandDevelop;
     const fOpen = monoExpandFinance;
+    const lOpen = monoExpandListings;
     if (els.developExpandWrap) {
       els.developExpandWrap.classList.toggle('mono-expand--open', dOpen);
     }
@@ -633,6 +639,16 @@
     }
     if (els.financeExpandToggle) {
       els.financeExpandToggle.setAttribute('aria-expanded', fOpen ? 'true' : 'false');
+    }
+    if (els.listingsExpandWrap) {
+      els.listingsExpandWrap.classList.toggle('mono-expand--open', lOpen);
+    }
+    if (els.listingsExpandBody) {
+      els.listingsExpandBody.hidden = !lOpen;
+      els.listingsExpandBody.setAttribute('aria-hidden', lOpen ? 'false' : 'true');
+    }
+    if (els.listingsExpandToggle) {
+      els.listingsExpandToggle.setAttribute('aria-expanded', lOpen ? 'true' : 'false');
     }
   }
 
@@ -1013,6 +1029,9 @@
     els.financeExpandWrap = center.querySelector('#monoFinanceExpand');
     els.financeExpandToggle = center.querySelector('#monoFinanceToggle');
     els.financeExpandBody = center.querySelector('#monoFinanceBody');
+    els.listingsExpandWrap = center.querySelector('#monoListingsExpand');
+    els.listingsExpandToggle = center.querySelector('#monoListingsToggle');
+    els.listingsExpandBody = center.querySelector('#monoListingsBody');
     els.developBadge = center.querySelector('#monoDevelopBadge');
 
     els.developExpandToggle?.addEventListener('click', () => {
@@ -1026,6 +1045,11 @@
       monoExpandFinance = !monoExpandFinance;
       syncMonoExpandShell();
       refreshMonoExpandBodies();
+    });
+    els.listingsExpandToggle?.addEventListener('click', () => {
+      monoExpandListings = !monoExpandListings;
+      syncMonoExpandShell();
+      queueMicrotask(() => schedulePortfolioScrollHints());
     });
     syncMonoExpandShell();
   }
@@ -2437,6 +2461,8 @@
   function syncPortfolioScrollHints() {
     syncOnePortfolioShell(els.portfolioHumanShell, els.portfolioHuman);
     syncOnePortfolioShell(els.portfolioAiShell, els.portfolioAi);
+    syncOnePortfolioShell(els.portfolioOverviewHumanShell, els.portfolioOverviewHuman);
+    syncOnePortfolioShell(els.portfolioOverviewAiShell, els.portfolioOverviewAi);
   }
 
   function syncOnePortfolioShell(shell, ul) {
@@ -2461,55 +2487,58 @@
     const onScroll = () => schedulePortfolioScrollHints();
     els.portfolioHuman?.addEventListener('scroll', onScroll, { passive: true });
     els.portfolioAi?.addEventListener('scroll', onScroll, { passive: true });
+    els.portfolioOverviewHuman?.addEventListener('scroll', onScroll, { passive: true });
+    els.portfolioOverviewAi?.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
+  }
+
+  function fillPortfolioUl(ul, key) {
+    ul.innerHTML = '';
+    const groups = portfolioGroupsFor(key);
+    if (groups.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'mono-portfolio-empty';
+      li.textContent = 'No listings yet';
+      ul.appendChild(li);
+      return;
+    }
+    groups.forEach((g) => {
+      const li = document.createElement('li');
+      li.className = 'mono-portfolio-group';
+      li.style.setProperty('--portfolio-accent', g.accent);
+      const chips = document.createElement('div');
+      chips.className = 'mono-portfolio-chips';
+      g.items.forEach(({ text, chipAccent, idx }) => {
+        const item = document.createElement('div');
+        item.className = 'mono-portfolio-item';
+        const chip = document.createElement('span');
+        chip.className = `mono-portfolio-chip${state.mortgaged[idx] ? ' mono-portfolio-chip--mortgaged' : ''}`;
+        chip.style.setProperty('--chip-accent', chipAccent);
+        chip.textContent = text;
+        item.appendChild(chip);
+        if (key === 'human') {
+          item.style.cursor = 'pointer';
+          item.title = 'Open listing card';
+          item.addEventListener('click', (ev) => {
+            if (ev.target.closest('button')) return;
+            if (state.winner != null) return;
+            toggleDeedTile(idx);
+            renderAll();
+          });
+        }
+        chips.appendChild(item);
+      });
+      li.appendChild(chips);
+      ul.appendChild(li);
+    });
   }
 
   function renderPortfolios() {
     if (!els.portfolioHuman || !els.portfolioAi) return;
-    const cols = [
-      { ul: els.portfolioHuman, key: 'human' },
-      { ul: els.portfolioAi, key: 'ai' },
-    ];
-    cols.forEach(({ ul, key }) => {
-      ul.innerHTML = '';
-      const groups = portfolioGroupsFor(key);
-      if (groups.length === 0) {
-        const li = document.createElement('li');
-        li.className = 'mono-portfolio-empty';
-        li.textContent = 'No listings yet';
-        ul.appendChild(li);
-        return;
-      }
-      groups.forEach((g) => {
-        const li = document.createElement('li');
-        li.className = 'mono-portfolio-group';
-        li.style.setProperty('--portfolio-accent', g.accent);
-        const chips = document.createElement('div');
-        chips.className = 'mono-portfolio-chips';
-        g.items.forEach(({ text, chipAccent, idx }) => {
-          const item = document.createElement('div');
-          item.className = 'mono-portfolio-item';
-          const chip = document.createElement('span');
-          chip.className = `mono-portfolio-chip${state.mortgaged[idx] ? ' mono-portfolio-chip--mortgaged' : ''}`;
-          chip.style.setProperty('--chip-accent', chipAccent);
-          chip.textContent = text;
-          item.appendChild(chip);
-          if (key === 'human') {
-            item.style.cursor = 'pointer';
-            item.title = 'Open listing card';
-            item.addEventListener('click', (ev) => {
-              if (ev.target.closest('button')) return;
-              if (state.winner != null) return;
-              toggleDeedTile(idx);
-              renderAll();
-            });
-          }
-          chips.appendChild(item);
-        });
-        li.appendChild(chips);
-        ul.appendChild(li);
-      });
-    });
+    fillPortfolioUl(els.portfolioHuman, 'human');
+    fillPortfolioUl(els.portfolioAi, 'ai');
+    if (els.portfolioOverviewHuman) fillPortfolioUl(els.portfolioOverviewHuman, 'human');
+    if (els.portfolioOverviewAi) fillPortfolioUl(els.portfolioOverviewAi, 'ai');
     queueMicrotask(() => schedulePortfolioScrollHints());
   }
 
@@ -2921,6 +2950,43 @@
               aria-hidden="true"
             ></div>
           </div>
+          <div class="mono-expand mono-expand--listings" id="monoListingsExpand">
+            <button
+              type="button"
+              class="mono-expand-toggle"
+              id="monoListingsToggle"
+              aria-expanded="false"
+              aria-controls="monoListingsBody"
+            >
+              <span class="mono-expand-chevron" aria-hidden="true">›</span>
+              <span class="mono-expand-label">Who owns what</span>
+            </button>
+            <div
+              class="mono-expand-body mono-scrollbar-none"
+              id="monoListingsBody"
+              hidden
+              aria-hidden="true"
+            >
+              <div class="mono-overview-grid">
+                <div class="mono-overview-col mono-overview-col--human">
+                  <p class="mono-overview-player-label">You</p>
+                  <div class="mono-portfolio-shell mono-portfolio-shell--overview" id="monoPortfolioOverviewHumanShell">
+                    <span class="mono-portfolio-hint mono-portfolio-hint--up" hidden aria-hidden="true">···</span>
+                    <ul class="mono-portfolio mono-portfolio--overview mono-scrollbar-none" id="monoPortfolioOverviewHuman" aria-label="Your listings"></ul>
+                    <span class="mono-portfolio-hint mono-portfolio-hint--down" hidden>More ↓</span>
+                  </div>
+                </div>
+                <div class="mono-overview-col mono-overview-col--ai">
+                  <p class="mono-overview-player-label">${PLAYER_LABEL.ai}</p>
+                  <div class="mono-portfolio-shell mono-portfolio-shell--overview" id="monoPortfolioOverviewAiShell">
+                    <span class="mono-portfolio-hint mono-portfolio-hint--up" hidden aria-hidden="true">···</span>
+                    <ul class="mono-portfolio mono-portfolio--overview mono-scrollbar-none" id="monoPortfolioOverviewAi" aria-label="${PLAYER_LABEL.ai} listings"></ul>
+                    <span class="mono-portfolio-hint mono-portfolio-hint--down" hidden>More ↓</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <ul class="mono-log mono-scrollbar-none" id="monoLog"></ul>
       </div>
@@ -2955,8 +3021,12 @@
     els.cashAiDock = center.querySelector('#monoCashAiDock');
     els.portfolioHumanShell = center.querySelector('#monoPortfolioHumanShell');
     els.portfolioAiShell = center.querySelector('#monoPortfolioAiShell');
+    els.portfolioOverviewHumanShell = center.querySelector('#monoPortfolioOverviewHumanShell');
+    els.portfolioOverviewAiShell = center.querySelector('#monoPortfolioOverviewAiShell');
     els.portfolioHuman = center.querySelector('#monoPortfolioHuman');
     els.portfolioAi = center.querySelector('#monoPortfolioAi');
+    els.portfolioOverviewHuman = center.querySelector('#monoPortfolioOverviewHuman');
+    els.portfolioOverviewAi = center.querySelector('#monoPortfolioOverviewAi');
     els.continueWrap = center.querySelector('#monoContinue');
     els.gameOverEl = center.querySelector('#monoGameOver');
     els.gameOverText = center.querySelector('#monoGameOverText');
