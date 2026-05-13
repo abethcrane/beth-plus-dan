@@ -2862,12 +2862,8 @@
     });
 
     center.innerHTML = `
+      <div id="monoDice" class="mono-dice-offscreen" aria-hidden="true"></div>
       <div class="mono-center-head">
-        <div class="mono-brand">
-          <span class="mono-brand-title">Monopoly</span>
-          <span class="mono-brand-sub">Bushwick/Ridgewood edition</span>
-        </div>
-        <div class="mono-dice" id="monoDice">🎲</div>
         <div class="mono-cash-dock" role="status" aria-label="Cash on hand">
           <div class="mono-cash-dock-pill mono-cash-dock-pill--human">
             <span class="mono-cash-dock-piece mono-piece mono-piece--human" aria-hidden="true"><img alt="" decoding="async" /></span>
@@ -3049,7 +3045,7 @@
       save();
       els.continueWrap.hidden = true;
       els.gameOverEl.hidden = true;
-      els.diceEl.textContent = '🎲';
+      els.diceEl.textContent = '';
       renderPrompt('Your turn — roll the dice.');
       log('New game.');
       renderAll();

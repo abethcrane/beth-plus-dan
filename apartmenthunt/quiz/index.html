@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Which apartment are you? · Beth &amp; Dan Need an Apartment</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&family=Caveat:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/apartmenthunt/style.css">
+</head>
+<body class="page-quiz">
+  <div class="page-bg"></div>
+  <div class="page-bg-overlay"></div>
+  <div class="grain"></div>
+
+  <div class="page-quiz-shell">
+    <main class="quiz-main">
+      <section id="quiz" class="section quiz-page">
+        <div class="quiz-container">
+          <div class="quiz-panel">
+            <h1 class="quiz-page-title">Which apartment are you?</h1>
+            <p class="quiz-page-subtitle">A buzzfeed-style quiz</p>
+            <div class="quiz-card">
+              <p class="quiz-prompt"></p>
+              <div class="quiz-options"></div>
+            </div>
+            <div class="quiz-progress" aria-live="polite"></div>
+            <div class="quiz-result" hidden>
+              <h2 class="quiz-result-name"></h2>
+              <p class="quiz-result-desc"></p>
+              <button type="button" class="quiz-restart cta-btn">Play again</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="subpage-back-wrap">
+        <a href="/apartmenthunt/" class="cta-btn cta-btn-outline">Get back to the hunt</a>
+      </div>
+    </main>
+
+    <footer>
+      <p>Beth &amp; Dan &middot; Ridgewood / Bushwick &middot; 2026</p>
+    </footer>
+  </div>
+
+  <script src="/apartmenthunt/quiz.js"></script>
+</body>
+</html>
