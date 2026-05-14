@@ -784,8 +784,6 @@ header#top {
   flex: 1 1 248px;
   max-width: 340px;
   min-width: min(248px, 100%);
-  max-height: min(78vh, 560px);
-  overflow: hidden;
   border-radius: 11px;
   border: 3px solid #252422;
   background: linear-gradient(165deg, #fdfaf4 0%, #ebe2cf 100%);
@@ -793,6 +791,47 @@ header#top {
   box-shadow:
     0 12px 32px rgba(0, 0, 0, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.mono-deed-tray--modal .mono-deed-tile {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 360px;
+  min-width: 0;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.mono-deed-tray--modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  margin: 0;
+  max-width: none;
+  width: 100%;
+  min-height: 100dvh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  box-sizing: border-box;
+  padding:
+    max(1.1rem, calc(env(safe-area-inset-top, 0px) + 14px))
+    max(1rem, calc(env(safe-area-inset-right, 0px) + 10px))
+    max(1.1rem, calc(env(safe-area-inset-bottom, 0px) + 14px))
+    max(1rem, calc(env(safe-area-inset-left, 0px) + 10px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  background: rgba(12, 11, 9, 0.72);
+  backdrop-filter: blur(7px);
+}
+
+body.mono-deed-modal-open {
+  overflow: hidden;
 }
 
 .mono-deed-tile::-webkit-scrollbar {
@@ -962,16 +1001,25 @@ header#top {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.mono-dice-offscreen {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* Last roll / jail movement — visually hidden before was why mobile never showed dice */
+.mono-dice-readout {
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(0.78rem, 3.1vw, 1.05rem);
+  font-family: var(--heading-font);
+  color: var(--warm-light);
+  margin: 0;
+  padding: 0.32rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  line-height: 1.25;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+}
+
+.mono-dice-readout:empty {
+  display: none;
 }
 
 .mono-cash-dock {
@@ -1075,6 +1123,25 @@ header#top {
 .mono-current-square-name {
   font-weight: 700;
   text-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
+}
+
+.mono-center-footer .mono-current-square.mono-current-square--tappable {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 8px;
+  padding: 0.35rem 0.45rem;
+  margin: 0 -0.2rem 0.2rem;
+  transition: background 0.15s ease;
+}
+
+.mono-current-square--tappable:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mono-current-square--tappable:focus-visible {
+  outline: 2px solid var(--warm-light);
+  outline-offset: 2px;
 }
 
 .mono-dice-pop {
@@ -1472,6 +1539,14 @@ header#top {
   background: rgba(14, 13, 11, 0.88);
 }
 
+@media (max-width: 640px) {
+  body.page-monopoly .mono-expand-body {
+    max-height: none;
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+}
+
 .mono-expand-body[hidden] {
   display: none !important;
 }
@@ -1501,6 +1576,7 @@ header#top {
   font-weight: 500;
   text-align: left;
   line-height: 1.25;
+  touch-action: manipulation;
 }
 
 .mono-li-chip:hover {
@@ -1523,35 +1599,35 @@ header#top {
 }
 
 .mono-dev-section {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.5rem;
 }
 
-.mono-dev-head {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.4rem;
-}
-
-.mono-dev-strip {
-  width: 6px;
-  align-self: stretch;
-  min-height: 1.5rem;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.mono-dev-title {
-  margin: 0;
-  font-size: 0.72rem;
+.mono-dev-group-banner {
+  margin: 0 0 0.35rem;
+  padding: 0.18rem 0 0.18rem 0.42rem;
+  border-left: 3px solid var(--dev-group-accent, var(--warm));
+  font-size: 0.6rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 253, 245, 0.72);
+  line-height: 1.25;
 }
 
 .mono-dev-chipwrap {
   min-width: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.45rem;
+}
+
+.mono-dev-chipwrap .mono-li-chip {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .mono-dev-row {
@@ -1559,7 +1635,7 @@ header#top {
   grid-template-columns: 1fr auto;
   gap: 0.35rem 0.5rem;
   align-items: center;
-  padding: 0.35rem 0;
+  padding: 0.28rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 0.72rem;
 }
@@ -1576,14 +1652,6 @@ header#top {
 .mono-dev-actions .mono-mini-btn {
   font-size: 0.6rem;
   white-space: nowrap;
-}
-
-.mono-dev-hint {
-  font-size: 0.62rem;
-  color: var(--text-muted);
-  text-align: right;
-  max-width: 9.5rem;
-  line-height: 1.2;
 }
 
 .mono-fin-section {
@@ -1611,10 +1679,10 @@ header#top {
 }
 
 .mono-fin-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.45rem 0.55rem;
   padding: 0.32rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 0.72rem;
@@ -1626,6 +1694,8 @@ header#top {
 
 .mono-fin-slot {
   flex-shrink: 0;
+  justify-self: end;
+  text-align: right;
 }
 
 .mono-fin-slot .mono-mini-btn {
@@ -1642,10 +1712,8 @@ header#top {
 
 .mono-deed-tile-scroll {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  overflow: visible;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -1698,15 +1766,6 @@ header#top {
 
   .mono-dev-actions {
     justify-content: flex-start;
-  }
-
-  .mono-fin-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .mono-fin-slot {
-    align-self: flex-end;
   }
 }
 
@@ -1812,8 +1871,36 @@ header#top {
 }
 
 @media (max-width: 560px) {
+  /* Tighter gap/padding → slightly larger cells without horizontal panning */
+  .mono-board-wrap .mono-board {
+    gap: 2px;
+    padding: 5px;
+  }
+
+  /* Was display:none — left only color strips to tap; keep copy tiny but present */
   .mono-board-wrap .mono-cell:not(.mono-cell--jail-corner) .mono-cell-body {
-    display: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2px 3px 6px;
+    gap: 0;
+  }
+
+  .mono-board-wrap .mono-cell:not(.mono-cell--jail-corner) .mono-name {
+    font-size: clamp(5.5px, 2.05vw, 9px);
+    line-height: 1.08;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 100%;
+  }
+
+  .mono-board-wrap .mono-cell:not(.mono-cell--jail-corner) .mono-price {
+    font-size: clamp(5px, 1.85vw, 8px);
+    line-height: 1.05;
   }
 
   .mono-board-wrap .mono-cell {

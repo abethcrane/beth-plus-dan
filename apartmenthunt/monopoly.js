@@ -345,12 +345,34 @@
     `;
   }
 
+  function useMonoDeedModal() {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+  }
+
+  function syncMonoDeedModalShell() {
+    if (!els.deedTray) return;
+    const modal = !els.deedTray.hidden && useMonoDeedModal() && deedOpenOrder.length > 0;
+    els.deedTray.classList.toggle('mono-deed-tray--modal', modal);
+    document.body.classList.toggle('mono-deed-modal-open', modal);
+    if (modal) {
+      els.deedTray.setAttribute('role', 'dialog');
+      els.deedTray.setAttribute('aria-modal', 'true');
+    } else {
+      els.deedTray.removeAttribute('role');
+      els.deedTray.removeAttribute('aria-modal');
+    }
+  }
+
   function renderDeedTray() {
     if (!els.deedTray) return;
     els.deedTray.innerHTML = '';
     if (deedOpenOrder.length === 0) {
       els.deedTray.hidden = true;
       els.deedTray.setAttribute('aria-hidden', 'true');
+      els.deedTray.classList.remove('mono-deed-tray--modal');
+      els.deedTray.removeAttribute('role');
+      els.deedTray.removeAttribute('aria-modal');
+      document.body.classList.remove('mono-deed-modal-open');
       return;
     }
     els.deedTray.hidden = false;
@@ -369,12 +391,19 @@
       if (foot) art.appendChild(foot);
       els.deedTray.appendChild(art);
     });
+    syncMonoDeedModalShell();
   }
 
   function toggleDeedTile(idx) {
     if (idx < 0 || idx >= BOARD.length) return;
     const pos = deedOpenOrder.indexOf(idx);
-    if (pos >= 0) deedOpenOrder.splice(pos, 1);
+    if (useMonoDeedModal()) {
+      if (pos >= 0) deedOpenOrder.splice(pos, 1);
+      else {
+        deedOpenOrder.length = 0;
+        deedOpenOrder.push(idx);
+      }
+    } else if (pos >= 0) deedOpenOrder.splice(pos, 1);
     else deedOpenOrder.push(idx);
     renderDeedTray();
   }
@@ -401,6 +430,22 @@
     tray.setAttribute('aria-label', 'Open listing cards');
     boardRoot.after(tray);
     els.deedTray = tray;
+
+    tray.addEventListener('click', (e) => {
+      if (!tray.classList.contains('mono-deed-tray--modal')) return;
+      if (e.target === tray) closeAllDeedTiles();
+    });
+
+    if (!monoDeedModalMmBound) {
+      monoDeedModalMmBound = true;
+      window.matchMedia('(max-width: 640px)').addEventListener('change', () => {
+        if (els.deedTray && deedOpenOrder.length > 0) renderDeedTray();
+        else if (els.deedTray) {
+          els.deedTray.classList.remove('mono-deed-tray--modal');
+          document.body.classList.remove('mono-deed-modal-open');
+        }
+      });
+    }
 
     boardRoot.addEventListener('click', (e) => {
       const cell = e.target.closest('[data-board-idx]');
@@ -816,42 +861,50 @@
       const section = document.createElement('section');
       section.className = 'mono-dev-section';
 
-      const head = document.createElement('div');
-      head.className = 'mono-dev-head';
-      const strip = document.createElement('div');
-      strip.className = 'mono-dev-strip';
-      strip.style.background = g.accent;
-      const h = document.createElement('h4');
-      h.className = 'mono-dev-title';
-      h.textContent = formatGroupTitle(g.groupKey);
-      head.appendChild(strip);
-      head.appendChild(h);
-      section.appendChild(head);
-
-      for (const { idx } of propItems) {
+      const rowMeta = propItems.map(({ idx }) => {
         const sq = BOARD[idx];
         const b = state.buildings[idx] || { houses: 0, hotel: false };
+        let kind = 'build';
+        if (b.hotel) kind = 'maxed';
+        else if (!hasMonopoly('human', sq.group, state.ownership)) kind = 'needmono';
+        return { idx, sq, b, kind };
+      });
+
+      const eligible = rowMeta.filter((r) => r.kind !== 'maxed');
+      const showGroupNeedMono =
+        eligible.length > 0 && eligible.every((r) => r.kind === 'needmono');
+
+      if (showGroupNeedMono) {
+        const banner = document.createElement('div');
+        banner.className = 'mono-dev-group-banner';
+        banner.style.setProperty('--dev-group-accent', g.accent);
+        banner.textContent = `${formatGroupTitle(g.groupKey)} · Need monopoly`;
+        section.appendChild(banner);
+      }
+
+      for (const { idx, sq, b, kind } of rowMeta) {
         const row = document.createElement('div');
         row.className = 'mono-dev-row';
 
         const chipWrap = document.createElement('div');
         chipWrap.className = 'mono-dev-chipwrap';
         chipWrap.appendChild(makeListingChipButton(idx));
+        if (kind === 'needmono' && !showGroupNeedMono) {
+          const sp = document.createElement('span');
+          sp.className = 'mono-dev-hint-inline';
+          sp.textContent = '· Need monopoly';
+          chipWrap.appendChild(sp);
+        } else if (kind === 'maxed') {
+          const sp = document.createElement('span');
+          sp.className = 'mono-dev-hint-inline';
+          sp.textContent = '· Maxed';
+          chipWrap.appendChild(sp);
+        }
 
         const actions = document.createElement('div');
         actions.className = 'mono-dev-actions';
 
-        if (b.hotel) {
-          const sp = document.createElement('span');
-          sp.className = 'mono-dev-hint';
-          sp.textContent = 'Maxed';
-          actions.appendChild(sp);
-        } else if (!hasMonopoly('human', sq.group, state.ownership)) {
-          const sp = document.createElement('span');
-          sp.className = 'mono-dev-hint';
-          sp.textContent = 'Need monopoly';
-          actions.appendChild(sp);
-        } else {
+        if (kind === 'build') {
           const inList = humanBuildableProps().includes(idx);
           const nextIsHotel = b.houses === 4 && !b.hotel;
           const nextCost = nextIsHotel ? hotelCostFor(idx) : houseCostFor(idx);
@@ -1018,7 +1071,7 @@
     const foot = document.createElement('p');
     foot.className = 'mono-panel-foot';
     foot.textContent =
-      'Tap a listing chip to pin its card under the board — same actions as here. Collapse a section with the row header.';
+      'Tap a listing chip to open its card (full screen on phones). Same actions on the card. Collapse a section with the row header.';
     els.financeExpandBody.appendChild(foot);
   }
 
@@ -1192,7 +1245,8 @@
   let els = {};
   let portfolioScrollRaf = null;
   let monoFooterDockBound = false;
-  /** @type {number[]} Board indices with listing cards open below the board (order preserved). */
+  let monoDeedModalMmBound = false;
+  /** Board indices with open listing cards (order preserved on desktop; mobile modal = one at a time). */
   let deedOpenOrder = [];
   /** Debounce resuming AI turn after refresh / normalize (see normalizeTurnState). */
   let monoAiResumeTimeout = null;
@@ -2862,7 +2916,6 @@
     });
 
     center.innerHTML = `
-      <div id="monoDice" class="mono-dice-offscreen" aria-hidden="true"></div>
       <div class="mono-center-head">
         <div class="mono-cash-dock" role="status" aria-label="Cash on hand">
           <div class="mono-cash-dock-pill mono-cash-dock-pill--human">
@@ -2896,7 +2949,15 @@
         </div>
       </div>
       <div class="mono-center-footer">
-        <p class="mono-current-square" id="monoCurrentSquare" aria-live="polite"></p>
+        <p id="monoDice" class="mono-dice-readout" aria-live="polite" aria-atomic="true"></p>
+        <p
+          class="mono-current-square mono-current-square--tappable"
+          id="monoCurrentSquare"
+          aria-live="polite"
+          tabindex="0"
+          role="button"
+          title="Open listing card for this square"
+        ></p>
         <p class="mono-prompt" id="monoPrompt"></p>
         <div class="mono-actions">
           <button type="button" class="cta-btn mono-action-btn" id="monoRoll">Roll</button>
@@ -3030,6 +3091,18 @@
     els.jailActions = center.querySelector('#monoJailActions');
     els.jailPayBtn = center.querySelector('#monoJailPay');
     els.jailRollBtn = center.querySelector('#monoJailRoll');
+
+    function onCurrentSquareActivate() {
+      if (state.winner != null) return;
+      toggleDeedTile(state.positions[0]);
+      renderAll();
+    }
+    els.currentSquareEl?.addEventListener('click', onCurrentSquareActivate);
+    els.currentSquareEl?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      onCurrentSquareActivate();
+    });
 
     els.rollBtn.addEventListener('click', onRoll);
     els.buyBtn.addEventListener('click', onBuy);
