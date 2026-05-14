@@ -798,38 +798,54 @@ header#top {
   width: 100%;
   max-width: 360px;
   min-width: 0;
-  margin-left: auto;
-  margin-right: auto;
-  margin-top: auto;
-  margin-bottom: auto;
+  margin: 0;
+  max-height: none;
 }
 
+/* Appended to document.body on phones so position:fixed isn’t trapped by panel backdrop-filter */
 .mono-deed-tray--modal {
   position: fixed;
-  inset: 0;
-  z-index: 5000;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  z-index: 10000;
   margin: 0;
   max-width: none;
-  width: 100%;
-  min-height: 100dvh;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
   align-items: center;
+  justify-content: safe center;
   box-sizing: border-box;
   padding:
-    max(1.1rem, calc(env(safe-area-inset-top, 0px) + 14px))
-    max(1rem, calc(env(safe-area-inset-right, 0px) + 10px))
-    max(1.1rem, calc(env(safe-area-inset-bottom, 0px) + 14px))
-    max(1rem, calc(env(safe-area-inset-left, 0px) + 10px));
-  overflow-y: auto;
+    max(1rem, calc(env(safe-area-inset-top, 0px) + 14px))
+    max(1rem, calc(env(safe-area-inset-right, 0px) + 12px))
+    max(1rem, calc(env(safe-area-inset-bottom, 0px) + 14px))
+    max(1rem, calc(env(safe-area-inset-left, 0px) + 12px));
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   background: rgba(12, 11, 9, 0.72);
   backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
 }
 
+@supports not (justify-content: safe center) {
+  .mono-deed-tray--modal {
+    justify-content: flex-start;
+  }
+}
+
+html.mono-deed-modal-open,
 body.mono-deed-modal-open {
   overflow: hidden;
 }
@@ -1614,6 +1630,23 @@ body.mono-deed-modal-open {
   line-height: 1.25;
 }
 
+.mono-dev-tier-label {
+  margin: 0.55rem 0 0.25rem;
+  padding-top: 0.35rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 253, 245, 0.45);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mono-dev-tier-label:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .mono-dev-chipwrap {
   min-width: 0;
   display: flex;
@@ -1632,7 +1665,7 @@ body.mono-deed-modal-open {
 
 .mono-dev-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.35rem 0.5rem;
   align-items: center;
   padding: 0.28rem 0;
@@ -1760,12 +1793,12 @@ body.mono-deed-modal-open {
 
 @media (max-width: 480px) {
   .mono-dev-row {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.3rem 0.45rem;
   }
 
   .mono-dev-actions {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 }
 

@@ -349,10 +349,24 @@
     return typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
   }
 
+  function mountDeedTrayForViewport() {
+    if (!els.deedTray || !els.boardRoot) return;
+    const modal = !els.deedTray.hidden && useMonoDeedModal() && deedOpenOrder.length > 0;
+    if (modal) {
+      if (els.deedTray.parentNode !== document.body) {
+        document.body.appendChild(els.deedTray);
+      }
+    } else if (els.deedTray.parentNode === document.body) {
+      els.boardRoot.after(els.deedTray);
+    }
+  }
+
   function syncMonoDeedModalShell() {
     if (!els.deedTray) return;
+    mountDeedTrayForViewport();
     const modal = !els.deedTray.hidden && useMonoDeedModal() && deedOpenOrder.length > 0;
     els.deedTray.classList.toggle('mono-deed-tray--modal', modal);
+    document.documentElement.classList.toggle('mono-deed-modal-open', modal);
     document.body.classList.toggle('mono-deed-modal-open', modal);
     if (modal) {
       els.deedTray.setAttribute('role', 'dialog');
@@ -373,6 +387,8 @@
       els.deedTray.removeAttribute('role');
       els.deedTray.removeAttribute('aria-modal');
       document.body.classList.remove('mono-deed-modal-open');
+      document.documentElement.classList.remove('mono-deed-modal-open');
+      mountDeedTrayForViewport();
       return;
     }
     els.deedTray.hidden = false;
@@ -443,6 +459,8 @@
         else if (els.deedTray) {
           els.deedTray.classList.remove('mono-deed-tray--modal');
           document.body.classList.remove('mono-deed-modal-open');
+          document.documentElement.classList.remove('mono-deed-modal-open');
+          mountDeedTrayForViewport();
         }
       });
     }
@@ -852,49 +870,76 @@
     const foot = document.createElement('p');
     foot.className = 'mono-panel-foot';
     foot.textContent =
-      'Mortgage trains & utilities, or unmortgage, from Financing — or use buttons on an open listing card.';
+      'See all properties in the Financing section.';
 
-    for (const g of groups) {
-      const propItems = g.items.filter(({ idx: i }) => BOARD[i].kind === 'property');
-      if (propItems.length === 0) continue;
+    const TIER_RANK = { complete: 0, completable: 1, blocked: 2 };
 
+    const entries = groups
+      .map((g) => {
+        const propItems = g.items.filter(({ idx: i }) => BOARD[i].kind === 'property');
+        if (propItems.length === 0) return null;
+        const groupKey = g.groupKey;
+        if (groupKey === '__misc' || groupKey === '__transit' || groupKey === '__utility') return null;
+        const stats = developColorGroupStats(groupKey);
+        if (stats.total === 0) return null;
+        const hasMono = hasMonopoly('human', groupKey, state.ownership);
+        const tier = developGroupTier(groupKey);
+        const boardMin = developGroupBoardMinIndex(groupKey);
+        return { g, propItems, groupKey, stats, hasMono, tier, boardMin };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const d = TIER_RANK[a.tier] - TIER_RANK[b.tier];
+        if (d !== 0) return d;
+        return a.boardMin - b.boardMin;
+      });
+
+    let lastTier = /** @type {string | null} */ (null);
+    for (const ent of entries) {
+      if (ent.tier !== lastTier) {
+        const tierH = document.createElement('div');
+        tierH.className = 'mono-dev-tier-label';
+        tierH.textContent =
+          ent.tier === 'complete'
+            ? 'Monopoly'
+            : ent.tier === 'completable'
+              ? 'Still completable'
+              : 'Blocked — mixed ownership';
+        els.developExpandBody.appendChild(tierH);
+        lastTier = ent.tier;
+      }
+
+      const { g, propItems, groupKey, stats, hasMono } = ent;
       const section = document.createElement('section');
       section.className = 'mono-dev-section';
 
-      const rowMeta = propItems.map(({ idx }) => {
-        const sq = BOARD[idx];
-        const b = state.buildings[idx] || { houses: 0, hotel: false };
-        let kind = 'build';
-        if (b.hotel) kind = 'maxed';
-        else if (!hasMonopoly('human', sq.group, state.ownership)) kind = 'needmono';
-        return { idx, sq, b, kind };
-      });
+      const header = document.createElement('div');
+      header.className = 'mono-dev-group-banner mono-dev-group-header';
+      header.style.setProperty('--dev-group-accent', g.accent);
+      header.textContent = developOneLineHeader(groupKey, stats, hasMono, ent.tier);
+      section.appendChild(header);
 
-      const eligible = rowMeta.filter((r) => r.kind !== 'maxed');
-      const showGroupNeedMono =
-        eligible.length > 0 && eligible.every((r) => r.kind === 'needmono');
-
-      if (showGroupNeedMono) {
-        const banner = document.createElement('div');
-        banner.className = 'mono-dev-group-banner';
-        banner.style.setProperty('--dev-group-accent', g.accent);
-        banner.textContent = `${formatGroupTitle(g.groupKey)} · Need monopoly`;
-        section.appendChild(banner);
+      if (!hasMono) {
+        els.developExpandBody.appendChild(section);
+        continue;
       }
 
-      for (const { idx, sq, b, kind } of rowMeta) {
+      const rowMeta = [...propItems]
+        .sort((x, y) => x.idx - y.idx)
+        .map(({ idx }) => {
+          const b = state.buildings[idx] || { houses: 0, hotel: false };
+          const kind = b.hotel ? 'maxed' : 'build';
+          return { idx, b, kind };
+        });
+
+      for (const { idx, b, kind } of rowMeta) {
         const row = document.createElement('div');
         row.className = 'mono-dev-row';
 
         const chipWrap = document.createElement('div');
         chipWrap.className = 'mono-dev-chipwrap';
         chipWrap.appendChild(makeListingChipButton(idx));
-        if (kind === 'needmono' && !showGroupNeedMono) {
-          const sp = document.createElement('span');
-          sp.className = 'mono-dev-hint-inline';
-          sp.textContent = '· Need monopoly';
-          chipWrap.appendChild(sp);
-        } else if (kind === 'maxed') {
+        if (kind === 'maxed') {
           const sp = document.createElement('span');
           sp.className = 'mono-dev-hint-inline';
           sp.textContent = '· Maxed';
@@ -1071,7 +1116,7 @@
     const foot = document.createElement('p');
     foot.className = 'mono-panel-foot';
     foot.textContent =
-      'Tap a listing chip to open its card (full screen on phones). Same actions on the card. Collapse a section with the row header.';
+      'Tap a listing chip to open its card.';
     els.financeExpandBody.appendChild(foot);
   }
 
@@ -1128,6 +1173,52 @@
 
   function hasMonopoly(owner, group, ownership) {
     return countGroupOwned(group, owner, ownership) === groupSize(group);
+  }
+
+  function developGroupPropertyIndices(group) {
+    const idxs = [];
+    BOARD.forEach((sq, idx) => {
+      if (sq.kind === 'property' && sq.group === group) idxs.push(idx);
+    });
+    return idxs;
+  }
+
+  function developColorGroupStats(group) {
+    const indices = developGroupPropertyIndices(group);
+    let human = 0;
+    let ai = 0;
+    let unowned = 0;
+    for (const idx of indices) {
+      const o = state.ownership[idx];
+      if (o === 'human') human++;
+      else if (o === 'ai') ai++;
+      else unowned++;
+    }
+    return { total: indices.length, human, ai, unowned, indices };
+  }
+
+  function developGroupBoardMinIndex(group) {
+    const idxs = developGroupPropertyIndices(group);
+    if (idxs.length === 0) return 9999;
+    return Math.min(...idxs);
+  }
+
+  /** complete = you have monopoly; completable = you can still finish set (no investor lots); blocked otherwise. */
+  function developGroupTier(groupKey) {
+    if (hasMonopoly('human', groupKey, state.ownership)) return 'complete';
+    if (developColorGroupStats(groupKey).ai > 0) return 'blocked';
+    return 'completable';
+  }
+
+  function developOneLineHeader(groupKey, stats, hasMono, tier) {
+    const title = formatGroupTitle(groupKey);
+    const you = `You: ${stats.human}/${stats.total}`;
+    if (hasMono) return `${title} · ${you} · monopoly`;
+    if (tier === 'blocked') {
+      const inv = `${PLAYER_LABEL.ai}: ${stats.ai}/${stats.total}`;
+      return `${title} · ${you} · ${inv}`;
+    }
+    return `${title} · ${you} · completable: yes`;
   }
 
   function computeRent(idx, ownership, buildings) {
