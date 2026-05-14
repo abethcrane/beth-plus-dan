@@ -856,25 +856,13 @@
     if (!els.developExpandBody) return;
     els.developExpandBody.replaceChildren();
     const paused = monoHudPaused();
+    const TIER_RANK = { complete: 0, completable: 1, blocked: 2 };
+
     const groups = portfolioGroupsFor('human').filter((g) =>
       g.items.some(({ idx: i }) => BOARD[i].kind === 'property'),
     );
-    if (groups.length === 0) {
-      const p = document.createElement('p');
-      p.className = 'mono-panel-empty';
-      p.textContent = 'No title listings yet. Buy a full color set to unlock builds.';
-      els.developExpandBody.appendChild(p);
-      return;
-    }
 
-    const foot = document.createElement('p');
-    foot.className = 'mono-panel-foot';
-    foot.textContent =
-      'See all properties in the Financing section.';
-
-    const TIER_RANK = { complete: 0, completable: 1, blocked: 2 };
-
-    const entries = groups
+    const ownedEntries = groups
       .map((g) => {
         const propItems = g.items.filter(({ idx: i }) => BOARD[i].kind === 'property');
         if (propItems.length === 0) return null;
@@ -887,12 +875,44 @@
         const boardMin = developGroupBoardMinIndex(groupKey);
         return { g, propItems, groupKey, stats, hasMono, tier, boardMin };
       })
-      .filter(Boolean)
-      .sort((a, b) => {
-        const d = TIER_RANK[a.tier] - TIER_RANK[b.tier];
-        if (d !== 0) return d;
-        return a.boardMin - b.boardMin;
-      });
+      .filter(Boolean);
+
+    const ownedColorKeys = new Set(
+      ownedEntries.map((e) => e.groupKey).filter((k) => typeof k === 'string' && !String(k).startsWith('__')),
+    );
+
+    const missingEntries = developAllColorGroupKeys()
+      .filter((groupKey) => !ownedColorKeys.has(groupKey))
+      .map((groupKey) => {
+        const stats = developColorGroupStats(groupKey);
+        if (stats.total === 0) return null;
+        const boardMin = developGroupBoardMinIndex(groupKey);
+        const accent = portfolioRowAccent(groupKey, stats.indices[0]);
+        const g = { groupKey, accent, items: [] };
+        const hasMono = hasMonopoly('human', groupKey, state.ownership);
+        const tier = developGroupTier(groupKey);
+        return { g, propItems: [], groupKey, stats, hasMono, tier, boardMin };
+      })
+      .filter(Boolean);
+
+    const entries = [...ownedEntries, ...missingEntries].sort((a, b) => {
+      const d = TIER_RANK[a.tier] - TIER_RANK[b.tier];
+      if (d !== 0) return d;
+      return a.boardMin - b.boardMin;
+    });
+
+    if (entries.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'mono-panel-empty';
+      p.textContent = 'No title listings yet. Buy a full color set to unlock builds.';
+      els.developExpandBody.appendChild(p);
+      return;
+    }
+
+    const foot = document.createElement('p');
+    foot.className = 'mono-panel-foot';
+    foot.textContent =
+      'See all of your properties in the Financing section.';
 
     let lastTier = /** @type {string | null} */ (null);
     for (const ent of entries) {
@@ -1201,6 +1221,15 @@
     const idxs = developGroupPropertyIndices(group);
     if (idxs.length === 0) return 9999;
     return Math.min(...idxs);
+  }
+
+  /** Distinct title color group ids on the board (develop panel only). */
+  function developAllColorGroupKeys() {
+    const s = new Set();
+    BOARD.forEach((sq) => {
+      if (sq.kind === 'property' && sq.group) s.add(sq.group);
+    });
+    return [...s];
   }
 
   /** complete = you have monopoly; completable = you can still finish set (no investor lots); blocked otherwise. */
