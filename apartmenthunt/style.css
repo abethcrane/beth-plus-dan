@@ -1708,6 +1708,10 @@ body.mono-deed-modal-open {
   text-align: right;
 }
 
+.mono-difficulty-tap-hint {
+  display: none;
+}
+
 @media (max-width: 640px) {
   body.page-monopoly .mono-board-toolbar {
     flex-wrap: nowrap;
@@ -1762,11 +1766,28 @@ body.mono-deed-modal-open {
 
   body.page-monopoly .mono-difficulty-dock {
     position: relative;
-    flex-direction: row;
+    flex-direction: column;
+    align-items: flex-end;
     flex-wrap: nowrap;
-    align-items: center;
     justify-content: flex-end;
-    gap: 0;
+    gap: 0.18rem;
+  }
+
+  body.page-monopoly .mono-difficulty-tap-hint {
+    display: block;
+    margin: 0;
+    padding: 0;
+    max-width: 11.5rem;
+    font-size: 0.52rem;
+    line-height: 1.25;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: rgba(255, 210, 190, 0.58);
+    text-align: right;
+  }
+
+  body.page-monopoly .mono-difficulty-tap-hint[hidden] {
+    display: none !important;
   }
 
   body.page-monopoly .mono-difficulty-caption {

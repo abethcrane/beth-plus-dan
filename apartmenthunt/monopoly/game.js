@@ -1409,15 +1409,23 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
         </button>
       </div>
       <p class="mono-difficulty-lock-hint" id="monoDifficultyLockHint" hidden>Locked once game is started.</p>
+      <p class="mono-difficulty-tap-hint" id="monoDifficultyTapHint" hidden aria-live="polite">
+        Restart to change difficulty.
+      </p>
     `;
 
     els.difficultyDock = dock;
     els.difficultyEasyBtn = dock.querySelector('#monoDiffEasy');
     els.difficultyHardBtn = dock.querySelector('#monoDiffHard');
     els.difficultyLockHint = dock.querySelector('#monoDifficultyLockHint');
+    els.difficultyTapHint = dock.querySelector('#monoDifficultyTapHint');
 
     function pick(variant) {
-      if (state.gameStarted || state.winner != null) return;
+      if (state.winner != null) return;
+      if (state.gameStarted) {
+        flashDifficultyLockedTapHint();
+        return;
+      }
       state.aiVariant = normalizeAiVariant(variant);
       save();
       renderAll();
@@ -1487,9 +1495,13 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
     els.difficultyEasyBtn.setAttribute('aria-checked', String(!isHard));
     els.difficultyHardBtn.setAttribute('aria-checked', String(isHard));
     const locked = state.gameStarted && state.winner == null;
-    els.difficultyEasyBtn.disabled = locked;
-    els.difficultyHardBtn.disabled = locked;
+    const mobileUnlock = locked && mobileDifficultyUx();
+    els.difficultyEasyBtn.disabled = locked && !mobileUnlock;
+    els.difficultyHardBtn.disabled = locked && !mobileUnlock;
+    els.difficultyEasyBtn.setAttribute('aria-disabled', String(locked && !mobileUnlock));
+    els.difficultyHardBtn.setAttribute('aria-disabled', String(locked && !mobileUnlock));
     if (els.difficultyLockHint) els.difficultyLockHint.hidden = !locked;
+    if (els.difficultyTapHint && !locked) els.difficultyTapHint.hidden = true;
     if (els.difficultyDock) els.difficultyDock.classList.toggle('mono-difficulty-locked', locked);
   }
 
@@ -1503,6 +1515,25 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
   let deedOpenOrder = [];
   /** Debounce resuming AI turn after refresh / normalize (see normalizeTurnState). */
   let monoAiResumeTimeout = null;
+  let monoDifficultyResizeWired = false;
+
+  function mobileDifficultyUx() {
+    try {
+      return typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function dismissDifficultyTapHint() {
+    if (els.difficultyTapHint) els.difficultyTapHint.hidden = true;
+  }
+
+  function flashDifficultyLockedTapHint() {
+    if (!mobileDifficultyUx()) return;
+    if (!els.difficultyTapHint) return;
+    els.difficultyTapHint.hidden = false;
+  }
 
   /** Canonical: on the shuttle corner token + inJail record means you must pay / roll doubles (not “just visiting”). */
   function humanServingJail() {
@@ -2231,6 +2262,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
     }
     const inj = state.inJail[0];
     if (!inj || inj.failedDoubles >= 3) return;
+    dismissDifficultyTapHint();
     state.phase = 'player_resolving';
     renderHud();
     const dice = rollDice();
@@ -2433,6 +2465,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
 
   function onRoll() {
     if (state.phase !== 'player_roll' || state.winner != null || state.turnOwner !== 0) return;
+    dismissDifficultyTapHint();
     state.gameStarted = true;
     state.phase = 'player_resolving';
     state.pendingDoublesExtraRoll = false;
@@ -3371,6 +3404,10 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
       if (!had) log('Welcome — roll to start.');
       renderPrompt(state.winner != null ? 'Game over — play again?' : 'Your turn — roll the dice.');
       queueMicrotask(() => normalizeTurnState());
+    }
+    if (!monoDifficultyResizeWired) {
+      monoDifficultyResizeWired = true;
+      window.addEventListener('resize', () => syncDifficultyDock());
     }
     renderAll();
   }
