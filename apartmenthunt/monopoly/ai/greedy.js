@@ -4,7 +4,7 @@ import { raiseCashMortgageOnly, liquidateMortgageThenSell, tryUnmortgageCheapest
 
 const GREEDY_MIN_CASH = 5000;
 
-export const greedyLandGrabStrategy = {
+export const yesManStrategy = {
   liquidateUntil(deps, playerIdx, needCash) {
     liquidateMortgageThenSell(deps, playerIdx, needCash);
   },

@@ -340,7 +340,7 @@ header#top {
 
 .mono-rules {
   max-width: min(760px, 94vw);
-  margin: -0.75rem auto 1.15rem;
+  margin: 0.85rem auto 1.15rem;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -420,7 +420,6 @@ header#top {
 
 .mono-board-wrap {
   width: 100%;
-  max-width: min(760px, 94vw);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -473,28 +472,20 @@ header#top {
 
 .mono-cell--transit {
   --transit-color: #888888;
-  background-image:
-    radial-gradient(
-      95% 78% at 50% 38%,
-      color-mix(in srgb, var(--transit-color) 34%, transparent) 0%,
-      transparent 68%
-    ),
-    linear-gradient(160deg, rgba(14, 13, 11, 0.93), rgba(22, 21, 17, 0.96));
-  background-color: rgba(16, 15, 13, 0.96);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--transit-color) 48%, transparent);
+  background-color: rgba(22, 21, 16, 0.92);
+  background-image: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 0 0 2px color-mix(in srgb, var(--transit-color) 58%, transparent);
 }
 
 .mono-cell--utility {
   --utility-color: #4299f0;
-  background-image:
-    radial-gradient(
-      92% 75% at 50% 40%,
-      color-mix(in srgb, var(--utility-color) 40%, transparent) 0%,
-      transparent 70%
-    ),
-    linear-gradient(158deg, rgba(14, 13, 11, 0.93), rgba(22, 21, 17, 0.96));
-  background-color: rgba(16, 15, 13, 0.96);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--utility-color) 52%, transparent);
+  background-color: rgba(22, 21, 16, 0.92);
+  background-image: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 0 0 2px color-mix(in srgb, var(--utility-color) 58%, transparent);
 }
 
 .mono-cell--nice {
@@ -1536,31 +1527,101 @@ body.mono-deed-modal-open {
 }
 
 
-.mono-ai-variant-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin: 0.5rem 0 0;
+.mono-board-region {
   width: 100%;
+  max-width: min(760px, 94vw);
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: stretch;
+  position: relative;
 }
 
-.mono-ai-variant-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+.mono-difficulty-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0.35rem 0.75rem;
+  align-self: flex-end;
+  max-width: 100%;
+}
+
+.mono-difficulty-dock.mono-difficulty-locked .mono-difficulty-hit:not(:disabled) {
+  opacity: 0.98;
+}
+
+.mono-difficulty-caption {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 245, 228, 0.55);
+  color: rgba(255, 245, 228, 0.52);
+  width: 100%;
+  text-align: right;
+  margin: 0;
 }
 
-.mono-ai-variant-select {
-  min-width: 11rem;
-  padding: 0.4rem 0.65rem;
-  font-size: 0.82rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(22, 20, 16, 0.95);
-  color: var(--warm-light);
+.mono-difficulty-segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.mono-difficulty-hit {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(18, 16, 12, 0.88);
+  color: rgba(255, 245, 228, 0.85);
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 5.5rem;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mono-difficulty-hit:hover:not(:disabled) {
+  border-color: rgba(255, 218, 160, 0.35);
+  background: rgba(28, 24, 18, 0.95);
+}
+
+.mono-difficulty-hit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mono-difficulty-hit--on {
+  border-color: rgba(255, 196, 120, 0.55);
+  background: rgba(48, 36, 20, 0.65);
+}
+
+.mono-difficulty-chip-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mono-difficulty-chip-sub {
+  font-size: 0.72rem;
+  color: rgba(255, 245, 228, 0.55);
+  font-style: italic;
+}
+
+.mono-difficulty-lock-hint {
+  margin: 0;
+  font-size: 0.68rem;
+  color: rgba(255, 200, 180, 0.45);
+  width: 100%;
+  text-align: right;
 }
 
 .mono-action-btn {
@@ -2845,7 +2906,7 @@ body.page-monopoly .monopoly-panel-subtitle {
   max-width: 520px;
 }
 
-body.page-monopoly .monopoly-panel .mono-board-wrap {
+body.page-monopoly .monopoly-panel .mono-board-region {
   margin-left: auto;
   margin-right: auto;
   margin-top: 0.25rem;

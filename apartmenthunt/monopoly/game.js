@@ -1,8 +1,8 @@
 'use strict';
 
-import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } from './ai/index.js';
+import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENTS } from './ai/index.js';
 
-  const STORAGE_KEY = 'bushwick-monopoly-state-v16';
+  const STORAGE_KEY = 'bushwick-monopoly-state-v17';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   /** Classic utility dice multipliers 4 / 10, scaled ×25 like rest of board economy → pay dice×100 or dice×250 */
@@ -57,7 +57,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     { kind: 'nice', name: 'Washington Irving\nLibrary', side: 's' },
     { kind: 'property', name: 'Myrtle Ave', group: 'brown', side: 's', ...ukProp(60, 50, [4, 20, 60, 180, 320, 450]) },
     { kind: 'tax', name: 'Broker Fee', tax: 200 * 25, side: 's' },
-    { kind: 'transit', name: 'M Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 's', stripColor: '#ff6319' },
+    { kind: 'transit', name: 'G Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 's', stripColor: '#6cbe45' },
     { kind: 'property', name: '60th Pl', group: 'light_blue', side: 's', ...ukProp(100, 50, [6, 30, 90, 270, 400, 550]) },
     { kind: 'nice', name: 'Mixtape', side: 's' },
     { kind: 'property', name: 'Forest Ave', group: 'light_blue', side: 's', ...ukProp(100, 50, [6, 30, 90, 270, 400, 550]) },
@@ -71,11 +71,11 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
       baseRent: 0,
       group: 'utility',
       side: 'w',
-      tileColor: '#4299f0',
+      tileColor: '#3db3ec',
     },
     { kind: 'property', name: 'Wyckoff Ave', group: 'pink', side: 'w', ...ukProp(140, 100, [10, 50, 150, 450, 625, 750]) },
     { kind: 'property', name: 'Seneca Ave', group: 'pink', side: 'w', ...ukProp(160, 100, [12, 60, 180, 500, 700, 900]) },
-    { kind: 'transit', name: 'L Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'w', stripColor: '#a7a9ac' },
+    { kind: 'transit', name: 'J / Z Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'w', stripColor: '#996633' },
     { kind: 'property', name: 'Gates Ave', group: 'orange', side: 'w', ...ukProp(180, 100, [14, 70, 200, 550, 750, 950]) },
     { kind: 'nice', name: 'Ridgewood\nCommunity Garden', side: 'w' },
     { kind: 'property', name: 'Halsey St', group: 'orange', side: 'w', ...ukProp(180, 100, [14, 70, 200, 550, 750, 950]) },
@@ -85,7 +85,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     { kind: 'nice', name: 'Ice Cream Window', side: 'n' },
     { kind: 'property', name: 'Grove St', group: 'red', side: 'n', ...ukProp(220, 150, [18, 90, 250, 700, 875, 1050]) },
     { kind: 'property', name: 'Evergreen Ave', group: 'red', side: 'n', ...ukProp(240, 150, [20, 100, 300, 750, 925, 1100]) },
-    { kind: 'transit', name: 'J / Z Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'n', stripColor: '#996633' },
+    { kind: 'transit', name: 'L Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'n', stripColor: '#a7a9ac' },
     { kind: 'property', name: 'Hancock St', group: 'yellow', side: 'n', ...ukProp(260, 150, [22, 110, 330, 800, 975, 1150]) },
     { kind: 'property', name: 'Covert St', group: 'yellow', side: 'n', ...ukProp(260, 150, [22, 110, 330, 800, 975, 1150]) },
     {
@@ -95,7 +95,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
       baseRent: 0,
       group: 'utility',
       side: 'n',
-      tileColor: '#4299f0',
+      tileColor: '#3db3ec',
     },
     { kind: 'property', name: 'Weirfeld St', group: 'yellow', side: 'n', ...ukProp(280, 150, [24, 120, 360, 850, 1025, 1200]) },
     { kind: 'corner', name: 'Trackwork —\ntake the bus', side: 'ne' },
@@ -103,7 +103,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     { kind: 'property', name: 'Onderdonk Ave', group: 'green', side: 'e', ...ukProp(300, 200, [26, 130, 390, 900, 1100, 1275]) },
     { kind: 'nice', name: 'Citibike Dock', side: 'e' },
     { kind: 'property', name: 'Woodward Ave', group: 'green', side: 'e', ...ukProp(320, 200, [28, 150, 450, 1000, 1200, 1400]) },
-    { kind: 'transit', name: 'G Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'e', stripColor: '#6cbe45' },
+    { kind: 'transit', name: 'M Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'e', stripColor: '#ff6319' },
     { kind: 'nice', name: 'Panina', side: 'e' },
     { kind: 'property', name: 'Cornelia St', group: 'blue', side: 'e', ...ukProp(350, 200, [35, 175, 500, 1100, 1300, 1500]) },
     { kind: 'tax', name: 'Application Fee', tax: 100 * 25, side: 'e' },
@@ -1361,7 +1361,71 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
       /** Whose turn to take actions: 0 = you, 1 = AI opponent (survives refresh). */
       turnOwner: 0,
       aiVariant: normalizeAiVariant(opts.aiVariant ?? 'regular_joe'),
+      gameStarted: Boolean(opts.gameStarted),
     };
+  }
+
+  function deriveGameStartedFromSnapshots() {
+    if (state.positions[0] !== 0 || state.positions[1] !== 0) return true;
+    const o = state.ownership;
+    if (o && typeof o === 'object' && Object.keys(o).length > 0) return true;
+    const m = state.mortgaged;
+    if (m && typeof m === 'object' && Object.keys(m).length > 0) return true;
+    const b = state.buildings;
+    if (b && typeof b === 'object' && Object.keys(b).length > 0) return true;
+    if (state.cash[0] !== STARTING_CASH || state.cash[1] !== STARTING_CASH) return true;
+    return false;
+  }
+
+  function mountDifficultyDock() {
+    const dock = document.getElementById('monoDifficultyDock');
+    if (!dock || dock.dataset.wired === '1') return;
+    dock.dataset.wired = '1';
+
+    dock.innerHTML = `
+      <span class="mono-difficulty-caption" id="monoDifficultyCaption">Opponent</span>
+      <div class="mono-difficulty-segmented" role="radiogroup" aria-labelledby="monoDifficultyCaption">
+        <button type="button" class="mono-difficulty-hit" role="radio" aria-checked="true" id="monoDiffEasy" data-variant="${DIFFICULTY_SEGMENTS.easy.variant}">
+          <span class="mono-difficulty-chip-label">${DIFFICULTY_SEGMENTS.easy.label}</span>
+          <span class="mono-difficulty-chip-sub">${DIFFICULTY_SEGMENTS.easy.subtitle}</span>
+        </button>
+        <button type="button" class="mono-difficulty-hit" role="radio" aria-checked="false" id="monoDiffHard" data-variant="${DIFFICULTY_SEGMENTS.hard.variant}">
+          <span class="mono-difficulty-chip-label">${DIFFICULTY_SEGMENTS.hard.label}</span>
+          <span class="mono-difficulty-chip-sub">${DIFFICULTY_SEGMENTS.hard.subtitle}</span>
+        </button>
+      </div>
+      <p class="mono-difficulty-lock-hint" id="monoDifficultyLockHint" hidden>Locked for this round.</p>
+    `;
+
+    els.difficultyDock = dock;
+    els.difficultyEasyBtn = dock.querySelector('#monoDiffEasy');
+    els.difficultyHardBtn = dock.querySelector('#monoDiffHard');
+    els.difficultyLockHint = dock.querySelector('#monoDifficultyLockHint');
+
+    function pick(variant) {
+      if (state.gameStarted || state.winner != null) return;
+      state.aiVariant = normalizeAiVariant(variant);
+      save();
+      renderAll();
+    }
+
+    els.difficultyEasyBtn.addEventListener('click', () => pick(DIFFICULTY_SEGMENTS.easy.variant));
+    els.difficultyHardBtn.addEventListener('click', () => pick(DIFFICULTY_SEGMENTS.hard.variant));
+  }
+
+  function syncDifficultyDock() {
+    if (!els.difficultyEasyBtn || !els.difficultyHardBtn) return;
+    const v = normalizeAiVariant(state.aiVariant);
+    const isHard = v === AI_VARIANT_YES_MAN;
+    els.difficultyEasyBtn.classList.toggle('mono-difficulty-hit--on', !isHard);
+    els.difficultyHardBtn.classList.toggle('mono-difficulty-hit--on', isHard);
+    els.difficultyEasyBtn.setAttribute('aria-checked', String(!isHard));
+    els.difficultyHardBtn.setAttribute('aria-checked', String(isHard));
+    const locked = state.gameStarted && state.winner == null;
+    els.difficultyEasyBtn.disabled = locked;
+    els.difficultyHardBtn.disabled = locked;
+    if (els.difficultyLockHint) els.difficultyLockHint.hidden = !locked;
+    if (els.difficultyDock) els.difficultyDock.classList.toggle('mono-difficulty-locked', locked);
   }
 
   let state = initialState();
@@ -1466,6 +1530,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
       if (!raw) return false;
       const o = JSON.parse(raw);
       if (!o.positions || o.positions.length !== 2) return false;
+      const savedGameStarted = typeof o.gameStarted === 'boolean' ? o.gameStarted : null;
       state = { ...initialState(), ...o };
       if (!state.history) state.history = [];
       if (!state.ownership || typeof state.ownership !== 'object') state.ownership = {};
@@ -1503,6 +1568,11 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
         state.phase = 'player_roll';
       }
       state.aiVariant = normalizeAiVariant(state.aiVariant);
+      if (savedGameStarted !== null) {
+        state.gameStarted = savedGameStarted;
+      } else {
+        state.gameStarted = deriveGameStartedFromSnapshots();
+      }
       reconcileHumanJailPhase();
       return true;
     } catch (_) {
@@ -2066,6 +2136,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     ) {
       return;
     }
+    state.gameStarted = true;
     if (state.phase !== 'player_jail') {
       state.phase = 'player_jail';
     }
@@ -2089,6 +2160,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     ) {
       return;
     }
+    state.gameStarted = true;
     if (state.phase !== 'player_jail') {
       state.phase = 'player_jail';
     }
@@ -2296,6 +2368,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
 
   function onRoll() {
     if (state.phase !== 'player_roll' || state.winner != null || state.turnOwner !== 0) return;
+    state.gameStarted = true;
     state.phase = 'player_resolving';
     state.pendingDoublesExtraRoll = false;
     renderHud();
@@ -2869,9 +2942,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
   }
 
   function renderAll() {
-    if (els.aiVariantSelect && els.aiVariantSelect.value !== normalizeAiVariant(state.aiVariant)) {
-      els.aiVariantSelect.value = normalizeAiVariant(state.aiVariant);
-    }
+    syncDifficultyDock();
     renderHud();
     renderLog();
     updatePieces();
@@ -3052,10 +3123,6 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
           <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoPass">Pass</button>
           <button type="button" class="cta-btn mono-action-btn" id="monoPayDue" hidden>Pay</button>
         </div>
-        <div class="mono-ai-variant-wrap">
-          <label class="mono-ai-variant-label" for="monoAiVariant">Opponent</label>
-          <select id="monoAiVariant" class="mono-ai-variant-select" aria-label="Opponent style"></select>
-        </div>
         <div class="mono-actions-jail" id="monoJailActions" hidden>
           <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailPay">Pay fine</button>
           <button type="button" class="cta-btn mono-action-btn" id="monoJailRoll">Roll for doubles</button>
@@ -3182,17 +3249,6 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     els.jailActions = center.querySelector('#monoJailActions');
     els.jailPayBtn = center.querySelector('#monoJailPay');
     els.jailRollBtn = center.querySelector('#monoJailRoll');
-    els.aiVariantSelect = center.querySelector('#monoAiVariant');
-    if (els.aiVariantSelect) {
-      els.aiVariantSelect.innerHTML = AI_VARIANT_IDS.map(
-        (id) => `<option value="${id}">${escapeHtml(AI_VARIANT_LABELS[id])}</option>`,
-      ).join('');
-      els.aiVariantSelect.value = normalizeAiVariant(state.aiVariant);
-      els.aiVariantSelect.addEventListener('change', () => {
-        state.aiVariant = normalizeAiVariant(els.aiVariantSelect.value);
-        save();
-      });
-    }
 
 
     function onCurrentSquareActivate() {
@@ -3217,7 +3273,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     center.querySelector('#monoResetBtn').addEventListener('click', () => {
       collapseMonoExpands();
       closeAllDeedTiles();
-      const keepVariant = normalizeAiVariant(els.aiVariantSelect?.value ?? state.aiVariant);
+      const keepVariant = normalizeAiVariant(state.aiVariant);
       state = initialState({ aiVariant: keepVariant });
       save();
       els.continueWrap.hidden = true;
@@ -3235,7 +3291,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
     center.querySelector('#monoNewBtn').addEventListener('click', () => {
       collapseMonoExpands();
       closeAllDeedTiles();
-      const keepVariant = normalizeAiVariant(els.aiVariantSelect?.value ?? state.aiVariant);
+      const keepVariant = normalizeAiVariant(state.aiVariant);
       state = initialState({ aiVariant: keepVariant });
       save();
       els.continueWrap.hidden = true;
@@ -3244,6 +3300,8 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_LABELS, AI_VARIANT_IDS } fr
       renderAll();
     });
 
+    mountDifficultyDock();
+    syncDifficultyDock();
     wireDeedUI(root);
     bindPortfolioScrollUi();
     bindMonoFooterDock();
