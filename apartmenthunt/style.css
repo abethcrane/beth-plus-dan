@@ -1690,12 +1690,151 @@ body.mono-deed-modal-open {
   font-style: italic;
 }
 
+.mono-restart-label--short,
+.mono-restart-confirm-label--short {
+  display: none;
+}
+
+.mono-restart-label--long,
+.mono-restart-confirm-label--long {
+  display: inline;
+}
+
 .mono-difficulty-lock-hint {
   margin: 0;
   font-size: 0.68rem;
   color: rgba(255, 200, 180, 0.45);
   width: 100%;
   text-align: right;
+}
+
+@media (max-width: 640px) {
+  body.page-monopoly .mono-board-toolbar {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  body.page-monopoly .mono-toolbar-cell--start {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  body.page-monopoly .mono-toolbar-cell--end {
+    flex: 0 0 auto;
+    margin-left: 0;
+  }
+
+  body.page-monopoly .mono-restart-cluster {
+    flex-wrap: nowrap;
+  }
+
+  body.page-monopoly .mono-restart-label--long {
+    display: none;
+  }
+
+  body.page-monopoly .mono-restart-label--short {
+    display: inline;
+  }
+
+  body.page-monopoly .mono-restart-confirm-label--long {
+    display: none;
+  }
+
+  body.page-monopoly .mono-restart-confirm-label--short {
+    display: inline;
+  }
+
+  body.page-monopoly .mono-restart-reveal.mono-mini-btn {
+    padding: 0.28rem 0.42rem;
+    font-size: 0.6rem;
+  }
+
+  body.page-monopoly .mono-restart-confirm-panel {
+    padding: 0.22rem 0.28rem;
+    gap: 0.28rem;
+  }
+
+  body.page-monopoly .mono-restart-confirm-panel .mono-mini-btn {
+    padding: 0.26rem 0.42rem;
+    font-size: 0.6rem;
+  }
+
+  body.page-monopoly .mono-difficulty-dock {
+    position: relative;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  body.page-monopoly .mono-difficulty-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  body.page-monopoly .mono-difficulty-lock-hint {
+    display: none !important;
+  }
+
+  body.page-monopoly .mono-difficulty-chip-sub {
+    display: none !important;
+  }
+
+  body.page-monopoly .mono-difficulty-chip-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+  }
+
+  body.page-monopoly .mono-difficulty-segmented {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 1px;
+    padding: 2px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(6, 5, 4, 0.95);
+  }
+
+  body.page-monopoly .mono-difficulty-hit {
+    flex: 1 1 50%;
+    min-width: 0;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 0.26rem 0.42rem;
+    border-radius: 999px;
+    border: none;
+    background: rgba(22, 20, 16, 0.92);
+    min-width: 3.25rem;
+    gap: 0;
+    box-shadow: none;
+  }
+
+  body.page-monopoly .mono-difficulty-hit--on {
+    background: rgba(62, 48, 28, 0.92);
+    border: none;
+    box-shadow: inset 0 0 0 1px rgba(255, 196, 120, 0.38);
+  }
+
+  body.page-monopoly .mono-difficulty-hit:hover:not(:disabled) {
+    border: none;
+    background: rgba(32, 28, 22, 0.96);
+  }
+
+  body.page-monopoly .mono-difficulty-hit--on:hover:not(:disabled) {
+    background: rgba(72, 56, 32, 0.96);
+  }
 }
 
 .mono-action-btn {
