@@ -3139,16 +3139,17 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
         const name = document.createElement('span');
         name.className = 'mono-name';
         if (idx === 0) {
-          name.appendChild(document.createTextNode('Payday: '));
-          const goAmt = document.createElement('span');
-          goAmt.className = 'mono-price';
-          goAmt.textContent = formatMoney(GO_BONUS);
-          name.appendChild(goAmt);
+          name.textContent = 'Payday';
         } else {
           name.innerHTML = sq.name.replace(/\n/g, '<br/>');
         }
         body.appendChild(name);
-        if (sq.price != null) {
+        if (idx === 0) {
+          const goAmt = document.createElement('span');
+          goAmt.className = 'mono-price';
+          goAmt.textContent = formatMoney(GO_BONUS);
+          body.appendChild(goAmt);
+        } else if (sq.price != null) {
           const price = document.createElement('span');
           price.className = 'mono-price';
           price.textContent = formatMoney(sq.price);

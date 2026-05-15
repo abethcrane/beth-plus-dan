@@ -1713,6 +1713,21 @@ body.mono-deed-modal-open {
 }
 
 @media (max-width: 640px) {
+  /* Maximize playable area — % padding uses the containing block width (~viewport for main). */
+  body.page-monopoly .monopoly-main {
+    padding-left: 1% !important;
+    padding-right: 1% !important;
+  }
+
+  body.page-monopoly .monopoly-panel {
+    padding-left: 1% !important;
+    padding-right: 1% !important;
+  }
+
+  body.page-monopoly .monopoly-panel .mono-board-region {
+    max-width: 100%;
+  }
+
   body.page-monopoly .mono-board-toolbar {
     flex-wrap: nowrap;
     align-items: center;
@@ -1855,6 +1870,55 @@ body.mono-deed-modal-open {
 
   body.page-monopoly .mono-difficulty-hit--on:hover:not(:disabled) {
     background: rgba(72, 56, 32, 0.96);
+  }
+
+  /*
+   * Mobile: W/E used a vertical color bar and ate horizontal space → prices clipped.
+   * Use a top strip for every edge (same idea as the N row); S row matches for consistency.
+   */
+  body.page-monopoly .mono-cell--w,
+  body.page-monopoly .mono-cell--e {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  body.page-monopoly .mono-cell--w .mono-strip,
+  body.page-monopoly .mono-cell--e .mono-strip {
+    width: 100%;
+    height: 26%;
+    min-height: 8px;
+    order: -1;
+  }
+
+  body.page-monopoly .mono-cell--w .mono-cell-body,
+  body.page-monopoly .mono-cell--e .mono-cell-body {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  body.page-monopoly .mono-cell--s .mono-strip {
+    order: -1;
+    margin-top: 0;
+    width: 100%;
+    height: 26%;
+    min-height: 8px;
+  }
+
+  body.page-monopoly .mono-cell--s:not(.mono-cell--jail-corner) .mono-cell-pieces {
+    bottom: 2px;
+  }
+
+  /* Priced squares: names truncate badly — show amount only (full name still in [title]). */
+  body.page-monopoly .mono-cell-body:has(> .mono-price) > .mono-name {
+    display: none;
+  }
+
+  body.page-monopoly .mono-cell-body:has(> .mono-price) > .mono-price {
+    font-size: 0.68em;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: -0.02em;
   }
 }
 
@@ -3369,16 +3433,8 @@ footer {
     padding: 1.35rem 1rem 1.15rem;
   }
 
-  body.page-monopoly .monopoly-main {
-    padding-top: 1.35rem;
-  }
-
   body.page-monopoly .monopoly-page-title {
     font-size: 1.65rem;
-  }
-
-  body.page-monopoly .monopoly-panel {
-    padding: 1.35rem 0.65rem 1.15rem;
   }
 
   .polaroid-scatter {
