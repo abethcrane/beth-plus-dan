@@ -3094,11 +3094,19 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
         cell.classList.add('mono-cell--property');
         cell.classList.add('mono-cell--transit');
         cell.style.setProperty('--transit-color', sq.stripColor || GROUP_COLORS.transit || '#666');
+        const strip = document.createElement('div');
+        strip.className = 'mono-strip';
+        strip.style.background = sq.stripColor || GROUP_COLORS.transit || '#666';
+        cell.appendChild(strip);
       }
       if (sq.kind === 'utility') {
         cell.classList.add('mono-cell--property');
         cell.classList.add('mono-cell--utility');
         cell.style.setProperty('--utility-color', sq.tileColor || GROUP_COLORS.utility);
+        const strip = document.createElement('div');
+        strip.className = 'mono-strip';
+        strip.style.background = sq.tileColor || GROUP_COLORS.utility;
+        cell.appendChild(strip);
       }
       if (sq.kind === 'nice') {
         cell.classList.add('mono-cell--nice');
@@ -3108,6 +3116,10 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
       }
       if (sq.kind === 'tax') {
         cell.classList.add('mono-cell--tax');
+        const strip = document.createElement('div');
+        strip.className = 'mono-strip mono-strip--tax';
+        strip.setAttribute('aria-hidden', 'true');
+        cell.appendChild(strip);
       }
 
       if (idx === 10) {

@@ -683,6 +683,11 @@ header#top {
   z-index: 2;
 }
 
+/* Tax squares use the same top strip height as deeds so label + fee align with other priced tiles. */
+.mono-strip--tax {
+  background: linear-gradient(180deg, rgba(201, 76, 76, 0.55), rgba(201, 76, 76, 0.22));
+}
+
 .mono-cell--w,
 .mono-cell--e {
   flex-direction: row;
@@ -1907,6 +1912,29 @@ body.mono-deed-modal-open {
 
   body.page-monopoly .mono-cell--s:not(.mono-cell--jail-corner) .mono-cell-pieces {
     bottom: 2px;
+  }
+
+  /* Trackwork corner: shorter label on small screens (full name in [title] + deeds). */
+  body.page-monopoly .mono-cell--trackwork .mono-name {
+    font-size: 0;
+    line-height: 0;
+    letter-spacing: -0.04em;
+    overflow: hidden;
+    word-break: normal;
+  }
+
+  body.page-monopoly .mono-cell--trackwork .mono-name br {
+    display: none;
+  }
+
+  body.page-monopoly .mono-cell--trackwork .mono-name::after {
+    content: 'transit jail';
+    font-family: var(--handwriting);
+    font-size: clamp(7px, 2.75vw, 11px);
+    line-height: 1.15;
+    letter-spacing: normal;
+    color: #f5d4b8;
+    display: block;
   }
 
   /* Priced squares: names truncate badly — show amount only (full name still in [title]). */
