@@ -338,6 +338,86 @@ header#top {
   margin-right: auto;
 }
 
+.mono-rules {
+  max-width: min(760px, 94vw);
+  margin: -0.75rem auto 1.15rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.mono-rules-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.65rem 0.85rem 0.65rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mono-rules-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mono-rules-summary::before {
+  content: "";
+  flex-shrink: 0;
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(-45deg);
+  translate: 0 -0.08em;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+}
+
+.mono-rules[open] .mono-rules-summary::before {
+  transform: rotate(45deg);
+  translate: 0 0.05em;
+}
+
+.mono-rules-summary:hover {
+  color: var(--warm-light);
+}
+
+.mono-rules-summary:focus-visible {
+  outline: 2px solid var(--warm-light);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.mono-rules-body {
+  padding: 0 0.85rem 0.85rem 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.mono-rules-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mono-rules-list li {
+  color: var(--text-muted);
+}
+
+.mono-rules-list li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .mono-board-wrap {
   width: 100%;
   max-width: min(760px, 94vw);
