@@ -1455,6 +1455,34 @@ body.mono-deed-modal-open {
   display: none !important;
 }
 
+
+.mono-ai-variant-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0;
+  width: 100%;
+}
+
+.mono-ai-variant-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 245, 228, 0.55);
+}
+
+.mono-ai-variant-select {
+  min-width: 11rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.82rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(22, 20, 16, 0.95);
+  color: var(--warm-light);
+}
+
 .mono-action-btn {
   margin-top: 0;
   padding: 0.55rem 1.1rem;
