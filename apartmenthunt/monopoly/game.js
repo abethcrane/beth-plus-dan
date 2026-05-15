@@ -1365,6 +1365,20 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
     };
   }
 
+  function startFreshGame() {
+    collapseMonoExpands();
+    closeAllDeedTiles();
+    const keepVariant = normalizeAiVariant(state.aiVariant);
+    state = initialState({ aiVariant: keepVariant });
+    save();
+    if (els.continueWrap) els.continueWrap.hidden = true;
+    if (els.gameOverEl) els.gameOverEl.hidden = true;
+    if (els.diceEl) els.diceEl.textContent = '';
+    renderPrompt('Your turn — roll the dice.');
+    log('New game.');
+    renderAll();
+  }
+
   function deriveGameStartedFromSnapshots() {
     if (state.positions[0] !== 0 || state.positions[1] !== 0) return true;
     const o = state.ownership;
@@ -1394,7 +1408,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
           <span class="mono-difficulty-chip-sub">${DIFFICULTY_SEGMENTS.hard.subtitle}</span>
         </button>
       </div>
-      <p class="mono-difficulty-lock-hint" id="monoDifficultyLockHint" hidden>Locked for this round.</p>
+      <p class="mono-difficulty-lock-hint" id="monoDifficultyLockHint" hidden>Locked once game is started.</p>
     `;
 
     els.difficultyDock = dock;
@@ -1411,6 +1425,57 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
 
     els.difficultyEasyBtn.addEventListener('click', () => pick(DIFFICULTY_SEGMENTS.easy.variant));
     els.difficultyHardBtn.addEventListener('click', () => pick(DIFFICULTY_SEGMENTS.hard.variant));
+  }
+
+  function mountRestartControls() {
+    const cluster = document.getElementById('monoRestartCluster');
+    const reveal = document.getElementById('monoRestartRevealBtn');
+    const panel = document.getElementById('monoRestartConfirmPanel');
+    const confirmBtn = document.getElementById('monoRestartConfirmBtn');
+    const cancelBtn = document.getElementById('monoRestartCancelBtn');
+    if (!cluster || !reveal || !panel || !confirmBtn || !cancelBtn || cluster.dataset.wired === '1') return;
+    cluster.dataset.wired = '1';
+
+    let docPointerBound = false;
+    function onDocPointerDown(e) {
+      if (!cluster.contains(e.target)) disarm();
+    }
+
+    function disarm() {
+      reveal.hidden = false;
+      panel.hidden = true;
+      reveal.setAttribute('aria-expanded', 'false');
+      if (docPointerBound) {
+        document.removeEventListener('pointerdown', onDocPointerDown, true);
+        docPointerBound = false;
+      }
+    }
+
+    function arm() {
+      reveal.hidden = true;
+      panel.hidden = false;
+      reveal.setAttribute('aria-expanded', 'true');
+      confirmBtn.focus();
+      if (!docPointerBound) {
+        document.addEventListener('pointerdown', onDocPointerDown, true);
+        docPointerBound = true;
+      }
+    }
+
+    reveal.addEventListener('click', () => arm());
+    cancelBtn.addEventListener('click', () => disarm());
+    confirmBtn.addEventListener('click', () => {
+      disarm();
+      startFreshGame();
+    });
+
+    cluster.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (panel.hidden) return;
+      e.preventDefault();
+      disarm();
+      reveal.focus();
+    });
   }
 
   function syncDifficultyDock() {
@@ -3270,37 +3335,16 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
     els.jailPayBtn.addEventListener('click', onJailPayFine);
     els.jailRollBtn.addEventListener('click', onJailRollDoubles);
     wireMonoExpandSections(center);
-    center.querySelector('#monoResetBtn').addEventListener('click', () => {
-      collapseMonoExpands();
-      closeAllDeedTiles();
-      const keepVariant = normalizeAiVariant(state.aiVariant);
-      state = initialState({ aiVariant: keepVariant });
-      save();
-      els.continueWrap.hidden = true;
-      els.gameOverEl.hidden = true;
-      els.diceEl.textContent = '';
-      renderPrompt('Your turn — roll the dice.');
-      log('New game.');
-      renderAll();
-    });
+    center.querySelector('#monoResetBtn').addEventListener('click', () => startFreshGame());
     center.querySelector('#monoContinueBtn').addEventListener('click', () => {
       els.continueWrap.hidden = true;
       normalizeTurnState();
       renderAll();
     });
-    center.querySelector('#monoNewBtn').addEventListener('click', () => {
-      collapseMonoExpands();
-      closeAllDeedTiles();
-      const keepVariant = normalizeAiVariant(state.aiVariant);
-      state = initialState({ aiVariant: keepVariant });
-      save();
-      els.continueWrap.hidden = true;
-      renderPrompt('Your turn — roll the dice.');
-      log('New game.');
-      renderAll();
-    });
+    center.querySelector('#monoNewBtn').addEventListener('click', () => startFreshGame());
 
     mountDifficultyDock();
+    mountRestartControls();
     syncDifficultyDock();
     wireDeedUI(root);
     bindPortfolioScrollUi();

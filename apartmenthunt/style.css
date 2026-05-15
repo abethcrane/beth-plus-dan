@@ -1539,13 +1539,87 @@ body.mono-deed-modal-open {
   position: relative;
 }
 
+.mono-board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  width: 100%;
+}
+
+.mono-toolbar-cell {
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.mono-toolbar-cell--start {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.mono-toolbar-cell--end {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.mono-restart-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.mono-restart-confirm-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 10px;
+  background: rgba(12, 11, 9, 0.72);
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+}
+
+.mono-restart-confirm-panel[hidden] {
+  display: none !important;
+}
+
+.mono-restart-reveal {
+  color: rgba(255, 245, 228, 0.72);
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  background: rgba(18, 17, 13, 0.45);
+}
+
+.mono-restart-reveal:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.mono-restart-confirm {
+  border-color: rgba(220, 90, 70, 0.65);
+  color: #fecaca;
+  background: rgba(48, 18, 14, 0.55);
+}
+
+.mono-restart-confirm:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.85);
+}
+
+.mono-restart-cancel {
+  border-color: color-mix(in srgb, var(--border) 80%, transparent);
+  color: rgba(255, 245, 228, 0.85);
+}
+
 .mono-difficulty-dock {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: flex-end;
   gap: 0.35rem 0.75rem;
-  align-self: flex-end;
   max-width: 100%;
 }
 
