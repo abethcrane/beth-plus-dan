@@ -78,9 +78,12 @@ export const CARD_DECKS_SKELETON = Object.freeze({
       defaultBody: 'Advance to Payday. Collect $5,000.',
       notes: 'Rotate square-specific lines across library / garden / citibikeDock when implementing.',
       squareBodies: {
-        library: 'Books due — walk back to Payday. Collect $5,000.',
-        garden: 'Plot meeting ends — head to Payday. Collect $5,000.',
-        citibikeDock: 'Unlock the bike and roll to Payday. Collect $5,000.',
+        library:
+          'Friends-of-the-library stipend clears — Advance clockwise toward Payday (often nearly a lap). Collect $5,000.',
+        garden:
+          'Plot meeting ends — Advance clockwise to Payday (might be nearly a lap). Collect $5,000.',
+        citibikeDock:
+          'Dock closes out — Advance clockwise to Payday (might be nearly a lap). Collect $5,000.',
       },
     },
     {
@@ -194,9 +197,9 @@ export const CARD_DECKS_SKELETON = Object.freeze({
       defaultBody: 'Advance to Payday. Collect $5,000.',
       notes: 'Rotate lines across opc / iceCreamWindow / phils when implementing.',
       squareBodies: {
-        opc: 'Drop-off day at OPC went well — head to Payday to cash out. Collect $5,000.',
-        iceCreamWindow: 'They’re giving out samples; you skip the line to Payday. Collect $5,000.',
-        phils: 'Last call already? You walk it to Payday. Collect $5,000.',
+        opc: 'Drop-off day went well — Advance clockwise to Payday. Collect $5,000.',
+        iceCreamWindow: 'Sugar crash — Advance clockwise to Payday (might be nearly a lap). Collect $5,000.',
+        phils: 'Last call vibes — Advance clockwise to Payday (might be nearly a lap). Collect $5,000.',
       },
     },
     {

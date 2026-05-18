@@ -2,16 +2,32 @@
 
 import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENTS } from './ai/index.js';
 
+import { niceSquareDeck, niceFlavorKey } from './card-decks-skeleton.js';
+
 import {
-  niceSquareDeck,
-  CARD_DECKS_SKELETON,
-  RIDGEWOOD_COMMONS_CSA,
-} from './card-decks-skeleton.js';
+  getCardFaceText,
+  CARD_ID_CHANCE,
+  CARD_ID_COMMUNITY_CHEST,
+  buildDrawableDeck,
+  isGoojfCard,
+} from './card-catalog.js';
 
-  void CARD_DECKS_SKELETON; // deck body + resolver wiring — see Chance / Community Chest skeleton module
-  void RIDGEWOOD_COMMONS_CSA; // optional $1k CSA copy replaces school-fees slot when you wire it
+import {
+  effectForCard,
+  forwardSteps,
+  nearestIndexForward,
+  CHANCE_UTILITY_RENT_PER_DICE,
+} from './card-effects.js';
 
-  const STORAGE_KEY = 'bushwick-monopoly-state-v17';
+import {
+  migrateGoojfHeld,
+  awardGoojf,
+  clearGoojf,
+  hasGoojf,
+  createEmptyGoojfHeld,
+} from './goojf-state.js';
+
+  const STORAGE_KEY = 'bushwick-monopoly-state-v18';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
   /** Classic utility dice multipliers 4 / 10, scaled ×25 like rest of board economy → pay dice×100 or dice×250 */
@@ -167,6 +183,57 @@ import {
     return a;
   }
 
+  function replenishDeckIfEmpty(arrKey, baseOrderIds) {
+    let d = state[arrKey];
+    if (!Array.isArray(d)) {
+      state[arrKey] = [];
+      d = state[arrKey];
+    }
+    if (d.length === 0) {
+      state[arrKey] = shuffle([...buildDrawableDeck(baseOrderIds, state.goojfHeld)]);
+    }
+  }
+
+  function deckKey(deckKind) {
+    return deckKind === 'chance' ? 'chanceDeck' : 'communityChestDeck';
+  }
+
+  function peekDrawCard(deckKind) {
+    replenishDeckIfEmpty(deckKey(deckKind), deckKind === 'chance' ? CARD_ID_CHANCE : CARD_ID_COMMUNITY_CHEST);
+    const key = deckKey(deckKind);
+    const deck = state[key];
+    const id = deck.shift();
+    if (!isGoojfCard(id)) deck.push(id);
+    return id;
+  }
+
+  function pushGoojfBackToDeckBottom(deckKind) {
+    const id = deckKind === 'chance' ? 'ch_goojf' : 'cc_goojf';
+    replenishDeckIfEmpty(deckKey(deckKind), deckKind === 'chance' ? CARD_ID_CHANCE : CARD_ID_COMMUNITY_CHEST);
+    state[deckKey(deckKind)].push(id);
+  }
+
+  function reconcileCardDecksAfterLoadIfNeeded() {
+    state.goojfHeld = migrateGoojfHeld(state.goojfHeld);
+    if (!Array.isArray(state.chanceDeck)) state.chanceDeck = [];
+    if (!Array.isArray(state.communityChestDeck)) state.communityChestDeck = [];
+    const expectChIds = buildDrawableDeck(CARD_ID_CHANCE, state.goojfHeld);
+    const expectCcIds = buildDrawableDeck(CARD_ID_COMMUNITY_CHEST, state.goojfHeld);
+    /** @returns {boolean} */
+    function valid(saved, allowed) {
+      if (!Array.isArray(saved) || saved.length !== allowed.length) return false;
+      const a = [...saved].sort();
+      const b = [...allowed].sort();
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    }
+    if (!valid(state.chanceDeck, expectChIds))
+      state.chanceDeck = shuffle([...expectChIds]);
+    if (!valid(state.communityChestDeck, expectCcIds))
+      state.communityChestDeck = shuffle([...expectCcIds]);
+  }
   function formatMoney(n) {
     return `$${n.toLocaleString()}`;
   }
@@ -325,12 +392,14 @@ import {
       body += `<p class="mono-deed-note">Landing here: pay <strong>${formatMoney(sq.tax)}</strong>.</p>`;
     } else if (sq.kind === 'nice') {
       const deck = niceSquareDeck(idx);
+      const dkTitle =
+        deck === 'communityChest' ? 'Community Chest' : deck === 'chance' ? 'Chance' : 'Community';
       if (deck === 'communityChest') {
-        body += `<p class="mono-deed-note">Community Chest — no purchase; draw pile not wired yet in this build.</p>`;
+        body += `<p class="mono-deed-note">Community Chest — no purchase; draw when you land here.</p>`;
       } else if (deck === 'chance') {
-        body += `<p class="mono-deed-note">Chance — no purchase; draw pile not wired yet in this build.</p>`;
+        body += `<p class="mono-deed-note">Chance — no purchase; draw when you land here.</p>`;
       } else {
-        body += `<p class="mono-deed-note">Community spot — no purchase. Draw-style rules don’t apply in this build.</p>`;
+        body += `<p class="mono-deed-note">${dkTitle} spot — no purchase.</p>`;
       }
     } else if (sq.kind === 'corner') {
       if (idx === 0) {
@@ -1378,6 +1447,18 @@ import {
       turnOwner: 0,
       aiVariant: normalizeAiVariant(opts.aiVariant ?? 'regular_joe'),
       gameStarted: Boolean(opts.gameStarted),
+      /** Get Out Of Jail Free: which deck pile (not both simultaneously per deck). */
+      goojfHeld: createEmptyGoojfHeld(),
+      chanceDeck: /** @type {string[]} */ ([]),
+      communityChestDeck: /** @type {string[]} */ ([]),
+      /** Holds drawn card overlay context until dismissed / applied. */
+      pendingCardReveal: /** @type {null | {
+        playerIdx: number,
+        cardId: string,
+        body: string,
+        deckTitle: string,
+        landingPayCtx: { tag: string, wantsDouble?: boolean },
+      }} */ (null),
     };
   }
 
@@ -1390,6 +1471,8 @@ import {
     if (els.continueWrap) els.continueWrap.hidden = true;
     if (els.gameOverEl) els.gameOverEl.hidden = true;
     if (els.diceEl) els.diceEl.textContent = '';
+    els.cardOverlay?.classList.add('mono-card-overlay--hidden');
+    els.cardSheet?.classList.remove('mono-card-sheet--investor');
     renderPrompt('Your turn — roll the dice.');
     log('New game.');
     renderAll();
@@ -1572,6 +1655,28 @@ import {
     return { failedDoubles, forcedExitDice };
   }
 
+  /** @param {unknown} raw */
+  function migratePendingCardReveal(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const pi = Number(raw.playerIdx);
+    const cardId = typeof raw.cardId === 'string' ? raw.cardId : '';
+    const body = typeof raw.body === 'string' ? raw.body : '';
+    const deckTitle = typeof raw.deckTitle === 'string' ? raw.deckTitle : '';
+    const lpc = raw.landingPayCtx;
+    if (!Number.isFinite(pi) || (pi !== 0 && pi !== 1) || !cardId) return null;
+    if (!lpc || typeof lpc !== 'object' || typeof lpc.tag !== 'string') return null;
+    return {
+      playerIdx: pi,
+      cardId,
+      body,
+      deckTitle,
+      landingPayCtx: {
+        tag: lpc.tag,
+        wantsDouble: typeof lpc.wantsDouble === 'boolean' ? lpc.wantsDouble : undefined,
+      },
+    };
+  }
+
   function renderHumanJailPrompt() {
     const inj = state.inJail[0];
     if (!inj) return;
@@ -1599,7 +1704,9 @@ import {
     if (
       state.phase === 'player_buy' ||
       state.phase === 'player_raise_cash' ||
-      state.phase === 'player_resolving'
+      state.phase === 'player_resolving' ||
+      state.phase === 'player_card' ||
+      state.phase === 'investor_card'
     ) {
       return;
     }
@@ -1644,6 +1751,23 @@ import {
       if (!o.positions || o.positions.length !== 2) return false;
       const savedGameStarted = typeof o.gameStarted === 'boolean' ? o.gameStarted : null;
       state = { ...initialState(), ...o };
+      const migratedPending = migratePendingCardReveal(o.pendingCardReveal);
+      state.pendingCardReveal = null;
+      if (state.phase === 'player_card' && migratedPending?.playerIdx === 0) state.pendingCardReveal = migratedPending;
+      else if (state.phase === 'investor_card' && migratedPending?.playerIdx === 1) state.pendingCardReveal = migratedPending;
+      if (state.phase === 'player_card' && !state.pendingCardReveal) {
+        if (humanServingJail()) state.phase = 'player_jail';
+        else {
+          const ridx = state.positions[0];
+          const rsq = BOARD[ridx];
+          if (rsq?.price != null && !ownershipAt(ridx)) state.phase = 'player_buy';
+          else state.phase = 'player_roll';
+        }
+      }
+      if (state.phase === 'investor_card' && !state.pendingCardReveal) {
+        state.turnOwner = 1;
+        state.phase = 'ai_roll';
+      }
       if (!state.history) state.history = [];
       if (!state.ownership || typeof state.ownership !== 'object') state.ownership = {};
       if (!Array.isArray(state.inJail) || state.inJail.length !== 2) {
@@ -1672,6 +1796,8 @@ import {
         'player_buy',
         'player_jail',
         'player_resolving',
+        'player_card',
+        'investor_card',
         'player_raise_cash',
         'ai_roll',
         'game_over',
@@ -1685,6 +1811,7 @@ import {
       } else {
         state.gameStarted = deriveGameStartedFromSnapshots();
       }
+      reconcileCardDecksAfterLoadIfNeeded();
       reconcileHumanJailPhase();
       return true;
     } catch (_) {
@@ -1842,6 +1969,11 @@ import {
       beginHumanTurn();
       save();
       renderAll();
+    } else if (r.mode === 'resume_after_card_pay') {
+      if (state.winner != null) return;
+      resumeAfterCardLand(r.playerIdx, r.landingPayCtx);
+      save();
+      renderAll();
     } else if (r.mode === 'ai_jail_fine_then_move') {
       if (state.winner != null) return;
       state.inJail[1] = null;
@@ -1973,6 +2105,276 @@ import {
     }
   }
 
+  function resumeAfterCardLand(playerIdx, landingPayCtx) {
+    if (!landingPayCtx) return;
+    if (playerIdx === 1) {
+      maybeAiMaintainAfterLand();
+      if (landingPayCtx.tag === 'ai_street' && landingPayCtx.wantsDouble) {
+        renderPrompt(`${PLAYER_LABEL.ai} rolled doubles — going again…`);
+        save();
+        renderAll();
+        setTimeout(runAiTurn, 750);
+        return;
+      }
+      state.doublesRunAi = 0;
+      beginHumanTurn();
+      save();
+      renderAll();
+      return;
+    }
+    humanFinishLandOrDoubleOrEnd();
+  }
+
+  function collectFromBank(playerIdx, amount, reason) {
+    if (amount <= 0 || state.winner != null) return;
+    state.cash[playerIdx] += amount;
+    log(`${PLAYER_LABEL[PLAYERS[playerIdx]]}: ${reason} (${formatMoney(amount)}).`);
+    save();
+    renderHud();
+    updatePieces();
+  }
+
+  function repairDebtFor(playerIdx, perHouse, perHotel) {
+    let bill = 0;
+    BOARD.forEach((sq, idx) => {
+      if (state.ownership[idx] !== PLAYERS[playerIdx]) return;
+      if (sq.kind !== 'property') return;
+      const b = state.buildings[idx] || { houses: 0, hotel: false };
+      if (!b?.hotel && b?.houses <= 0) return;
+      if (b.hotel) bill += perHotel;
+      else bill += b.houses * perHouse;
+    });
+    return bill;
+  }
+
+  function movePlayerBackward(playerIdx, steps, done) {
+    let remaining = Math.abs(steps);
+    const stepOnce = () => {
+      if (remaining <= 0) {
+        updatePieces();
+        done?.();
+        return;
+      }
+      state.positions[playerIdx] = (state.positions[playerIdx] + 39) % 40;
+      remaining--;
+      updatePieces();
+      setTimeout(stepOnce, 100);
+    };
+    stepOnce();
+  }
+
+  function applyChanceUtilityPayment(playerIdx, targetIdx, landingPayCtx) {
+    const sq = BOARD[targetIdx];
+    const ownerKey = state.ownership[targetIdx];
+    const dice = rollDice();
+    const total = dice[0] + dice[1];
+    state.lastDiceTotal = total;
+    els.diceEl.textContent = `Card dice: ${dice[0]} + ${dice[1]} = ${total}`;
+    animateDice();
+    const ow = ownerKey === 'human' ? 0 : 1;
+    const amt = total * CHANCE_UTILITY_RENT_PER_DICE;
+    logLandfall(playerIdx, targetIdx);
+    const resume = {
+      mode: /** @type {const} */ ('resume_after_card_pay'),
+      playerIdx,
+      landingPayCtx,
+    };
+    settlePayment(playerIdx, amt, `Nearest utility (${sq.name}) — card rent`, true, {
+      payeeIdx: ow,
+      resume,
+    });
+  }
+
+  function applyNearestUtilityThen(playerIdx, eff, landingPayCtx) {
+    const from = state.positions[playerIdx];
+    const idx = nearestIndexForward(from, 'utility', BOARD);
+    const fs = forwardSteps(from, idx);
+    movePlayer(playerIdx, fs, () => {
+      const tgt = state.positions[playerIdx];
+      const ownerKey = state.ownership[tgt];
+      if (!ownerKey || state.mortgaged[tgt]) {
+        resolveLanding(playerIdx, () => resumeAfterCardLand(playerIdx, landingPayCtx), landingPayCtx, undefined);
+        return;
+      }
+      applyChanceUtilityPayment(playerIdx, tgt, landingPayCtx);
+    });
+  }
+
+  function applyNearestTransitThen(playerIdx, eff, landingPayCtx) {
+    const from = state.positions[playerIdx];
+    const idx = nearestIndexForward(from, 'transit', BOARD);
+    const fs = forwardSteps(from, idx);
+    movePlayer(playerIdx, fs, () => {
+      resolveLanding(playerIdx, () => resumeAfterCardLand(playerIdx, landingPayCtx), landingPayCtx, {
+        cardDoubleTransit: !!eff.doubleTransitRent,
+      });
+    });
+  }
+
+  /** @param {'chance'|'communityChest'} deckKind */
+  function deckTitleFor(deckKind) {
+    return deckKind === 'chance' ? 'Chance' : 'Community Chest';
+  }
+
+  function peekDeckKindFor(cardId) {
+    return String(cardId).startsWith('ch_') ? 'chance' : 'communityChest';
+  }
+
+  function applyResolvedCardEffect(playerIdx, cardId, landingPayCtx) {
+    state.pendingCardReveal = null;
+    const eff = effectForCard(cardId);
+    const resumePkg = () => ({
+      mode: /** @type {const} */ ('resume_after_card_pay'),
+      playerIdx,
+      landingPayCtx,
+    });
+    if (!eff || !eff.kind) {
+      resumeAfterCardLand(playerIdx, landingPayCtx);
+      save();
+      renderAll();
+      return;
+    }
+
+    switch (eff.kind) {
+      case 'collect_bank':
+        collectFromBank(playerIdx, eff.amount, getCardFaceText(cardId, null));
+        resumeAfterCardLand(playerIdx, landingPayCtx);
+        break;
+      case 'pay_bank':
+        settlePayment(playerIdx, eff.amount, `${deckTitleFor(peekDeckKindFor(cardId))} card`, true, {
+          payeeIdx: null,
+          resume: resumePkg(),
+        });
+        break;
+      case 'collect_each_other': {
+        const opp = 1 - playerIdx;
+        const reason = `${deckTitleFor(peekDeckKindFor(cardId))}`;
+        settlePayment(opp, eff.amount, `${reason} — chipped in`, true, {
+          payeeIdx: playerIdx,
+          resume: resumePkg(),
+        });
+        break;
+      }
+      case 'pay_each_other': {
+        const opp = 1 - playerIdx;
+        const reason = `${deckTitleFor(peekDeckKindFor(cardId))}`;
+        settlePayment(playerIdx, eff.amount, `${reason} — your round`, true, {
+          payeeIdx: opp,
+          resume: resumePkg(),
+        });
+        break;
+      }
+      case 'repairs_bank': {
+        const bill = repairDebtFor(playerIdx, eff.perHouse, eff.perHotel);
+        settlePayment(playerIdx, bill, `${deckTitleFor(peekDeckKindFor(cardId))} — repairs`, true, {
+          payeeIdx: null,
+          resume: resumePkg(),
+        });
+        break;
+      }
+      case 'advance_forward_to_index': {
+        const fs = forwardSteps(state.positions[playerIdx], eff.index);
+        movePlayer(playerIdx, fs, () => {
+          resolveLanding(playerIdx, () => resumeAfterCardLand(playerIdx, landingPayCtx), landingPayCtx, undefined);
+          save();
+          renderAll();
+        });
+        return;
+      }
+      case 'advance_nearest_then_land':
+        if (eff.group === 'transit') applyNearestTransitThen(playerIdx, eff, landingPayCtx);
+        else applyNearestUtilityThen(playerIdx, eff, landingPayCtx);
+        return;
+      case 'step_relative_turn':
+        movePlayerBackward(playerIdx, eff.delta, () => {
+          resolveLanding(playerIdx, () => resumeAfterCardLand(playerIdx, landingPayCtx), landingPayCtx, undefined);
+          save();
+          renderAll();
+        });
+        return;
+      case 'go_jail':
+        teleportToJail(playerIdx);
+        resumeAfterCardLand(playerIdx, landingPayCtx);
+        break;
+      case 'retain_goojf': {
+        awardGoojf(state.goojfHeld, playerIdx, eff.deck === 'communityChest' ? 'communityChest' : 'chance');
+        log(
+          `${PLAYER_LABEL[PLAYERS[playerIdx]]}: Get Out Of Jail Free (${deckTitleFor(eff.deck)}) — kept until used.`,
+        );
+        resumeAfterCardLand(playerIdx, landingPayCtx);
+        break;
+      }
+      default:
+        resumeAfterCardLand(playerIdx, landingPayCtx);
+    }
+    save();
+    renderAll();
+  }
+
+  function beginNiceSquareCard(playerIdx, squareIdx, landingPayCtx) {
+    const dk = niceSquareDeck(squareIdx);
+    if (dk !== 'communityChest' && dk !== 'chance') {
+      resumeAfterCardLand(playerIdx, landingPayCtx);
+      return;
+    }
+    const cid = peekDrawCard(dk);
+    const fk = niceFlavorKey(squareIdx);
+    const body = getCardFaceText(cid, fk);
+    const deckTitle = deckTitleFor(dk);
+    log(
+      `${PLAYER_LABEL[PLAYERS[playerIdx]]}: drew ${deckTitle} — "${body.replace(/\s+/g, ' ').trim().slice(0, 80)}${body.length > 80 ? '…' : ''}"`,
+    );
+
+    if (playerIdx === 1) {
+      state.phase = /** @type {typeof state.phase} */ ('investor_card');
+      state.pendingCardReveal = {
+        playerIdx: 1,
+        cardId: cid,
+        body,
+        deckTitle,
+        landingPayCtx,
+      };
+      renderHud();
+      return;
+    }
+
+    state.phase = /** @type {typeof state.phase} */ ('player_card');
+    state.pendingCardReveal = {
+      playerIdx,
+      cardId: cid,
+      body,
+      deckTitle,
+      landingPayCtx,
+    };
+    renderHud();
+  }
+
+  function dismissCardOverlay() {
+    const p = state.pendingCardReveal;
+    if (!p || state.winner != null) return;
+    const humanCard = state.phase === 'player_card' && p.playerIdx === 0;
+    const invCard = state.phase === 'investor_card' && p.playerIdx === 1;
+    if (!humanCard && !invCard) return;
+    els.cardOverlay?.classList.add('mono-card-overlay--hidden');
+    els.cardSheet?.classList.remove('mono-card-sheet--investor');
+    state.phase = 'player_resolving';
+    applyResolvedCardEffect(p.playerIdx, p.cardId, p.landingPayCtx);
+  }
+
+  function onJailUseGoojf(deckKind /** @type {'chance'|'communityChest'} */) {
+    if (state.winner != null || state.turnOwner !== 0 || !humanServingJail()) return;
+    if (!hasGoojf(state.goojfHeld, 0, deckKind)) return;
+    if (
+      state.phase === 'player_raise_cash' ||
+      state.phase === 'player_buy' ||
+      state.phase === 'player_card' ||
+      state.phase === 'investor_card'
+    )
+      return;
+    dismissDifficultyTapHint();
+    leaveJailWithGoojfThenRollAndLand(0, deckKind);
+  }
+
   function logLandfall(playerIdx, idx) {
     const sq = BOARD[idx];
     const you = playerIdx === 0 ? 'You' : PLAYER_LABEL.ai;
@@ -1983,8 +2385,9 @@ import {
     }
     if (sq.kind === 'nice') {
       const deck = niceSquareDeck(idx);
-      const dk = deck === 'communityChest' ? 'Community Chest' : deck === 'chance' ? 'Chance' : 'Nice spot';
-      log(`${you} landed on ${sq.name} (${dk} · draw pile not wired yet — nothing owed).`);
+      const dk =
+        deck === 'communityChest' ? 'Community Chest' : deck === 'chance' ? 'Chance' : 'Nice spot';
+      log(`${you} landed on ${sq.name} (${dk}).`);
       return;
     }
     if (sq.kind === 'corner') {
@@ -2023,7 +2426,7 @@ import {
     }
   }
 
-  function resolveLanding(playerIdx, cb, landingPayCtx) {
+  function resolveLanding(playerIdx, cb, landingPayCtx, landOpts) {
     const idx = state.positions[playerIdx];
     const sq = BOARD[idx];
 
@@ -2036,7 +2439,7 @@ import {
 
     if (sq.kind === 'nice') {
       logLandfall(playerIdx, idx);
-      if (state.winner == null) cb?.();
+      beginNiceSquareCard(playerIdx, idx, landingPayCtx);
       return;
     }
 
@@ -2078,7 +2481,8 @@ import {
     }
 
     const ownerIdx = ownerKey === 'human' ? 0 : 1;
-    const rent = computeRent(idx, state.ownership, state.buildings);
+    let rent = computeRent(idx, state.ownership, state.buildings);
+    if (landOpts?.cardDoubleTransit && sq.kind === 'transit') rent *= 2;
     logLandfall(playerIdx, idx);
     const resume = paymentResumeFromLandingPay(landingPayCtx);
     settlePayment(playerIdx, rent, `Rent on ${sq.name}`, true, {
@@ -2105,6 +2509,7 @@ import {
 
   function runAiTurn() {
     if (state.winner != null) return;
+    if (state.phase === 'investor_card') return;
     state.phase = 'ai_roll';
     renderHud();
     if (state.positions[1] === JAIL_INDEX && state.inJail[1]) {
@@ -2241,12 +2646,52 @@ import {
     });
   }
 
+  function leaveJailWithGoojfThenRollAndLand(playerIdx, deckKind /** @type {'chance'|'communityChest'} */) {
+    clearGoojf(state.goojfHeld, playerIdx, deckKind);
+    pushGoojfBackToDeckBottom(deckKind);
+    log(
+      playerIdx === 0
+        ? `You played Get Out Of Jail Free (${deckTitleFor(deckKind)}).`
+        : `${PLAYER_LABEL[PLAYERS[playerIdx]]} played Get Out Of Jail Free (${deckTitleFor(deckKind)}).`,
+    );
+    state.inJail[playerIdx] = null;
+    state.gameStarted = true;
+    state.phase = 'player_resolving';
+    const dice = rollDice();
+    const total = dice[0] + dice[1];
+    state.lastDiceTotal = total;
+    els.diceEl.textContent = `${dice[0]} + ${dice[1]} = ${total}`;
+    animateDice();
+    save();
+    renderAll();
+    movePlayer(playerIdx, total, () => {
+      const landTag =
+        playerIdx === 0 ? /** @type {const} */ ('human_jail') : /** @type {const} */ ('ai_jail');
+      resolveLanding(playerIdx, () => {
+        if (playerIdx === 1) {
+          if (state.winner != null) return;
+          maybeAiMaintainAfterLand();
+          beginHumanTurn();
+          save();
+          renderAll();
+        } else {
+          state.phase = 'player_roll';
+          if (state.winner != null) return;
+          if (state.phase === 'player_buy') return;
+          endPlayerTurn();
+        }
+      }, { tag: landTag });
+    });
+  }
+
   function onJailPayFine() {
     if (state.winner != null || state.turnOwner !== 0 || !humanServingJail()) return;
     if (
       state.phase === 'player_raise_cash' ||
       state.phase === 'player_resolving' ||
-      state.phase === 'player_buy'
+      state.phase === 'player_buy' ||
+      state.phase === 'player_card' ||
+      state.phase === 'investor_card'
     ) {
       return;
     }
@@ -2270,7 +2715,9 @@ import {
     if (
       state.phase === 'player_raise_cash' ||
       state.phase === 'player_resolving' ||
-      state.phase === 'player_buy'
+      state.phase === 'player_buy' ||
+      state.phase === 'player_card' ||
+      state.phase === 'investor_card'
     ) {
       return;
     }
@@ -2327,10 +2774,22 @@ import {
       return;
     }
     const mustPay = inj.failedDoubles >= 3;
+    /** @type {'chance'|'communityChest'|null} */
+    let gooDeck = null;
+    if (hasGoojf(state.goojfHeld, 1, 'chance') && hasGoojf(state.goojfHeld, 1, 'communityChest')) {
+      gooDeck = Math.random() < 0.5 ? 'chance' : 'communityChest';
+    } else if (hasGoojf(state.goojfHeld, 1, 'chance')) gooDeck = 'chance';
+    else if (hasGoojf(state.goojfHeld, 1, 'communityChest')) gooDeck = 'communityChest';
+
     const preferPay =
       mustPay ||
       (state.cash[1] >= JAIL_FINE &&
         (state.cash[1] >= JAIL_FINE * 3 || inj.failedDoubles >= 2 || Math.random() > 0.45));
+
+    if (gooDeck && (mustPay || !preferPay || Math.random() < 0.5)) {
+      leaveJailWithGoojfThenRollAndLand(1, gooDeck);
+      return;
+    }
 
     if (preferPay) {
       const forced = inj.forcedExitDice;
@@ -2376,7 +2835,13 @@ import {
 
   function humanFinishLandOrDoubleOrEnd() {
     if (state.winner != null) return;
-    if (state.phase === 'player_buy' || state.phase === 'player_raise_cash') return;
+    if (
+      state.phase === 'player_buy' ||
+      state.phase === 'player_raise_cash' ||
+      state.phase === 'player_card' ||
+      state.phase === 'investor_card'
+    )
+      return;
     if (state.pendingDoublesExtraRoll) {
       state.phase = 'player_roll';
       renderPrompt('Doubles — roll again.');
@@ -2404,6 +2869,35 @@ import {
     if (humanServingJail()) {
       state.turnOwner = 0;
     }
+    if (state.phase === 'player_card' && state.pendingCardReveal?.playerIdx === 0) {
+      state.turnOwner = 0;
+      return;
+    }
+    if (state.phase === 'investor_card' && state.pendingCardReveal?.playerIdx === 1) {
+      state.turnOwner = 1;
+      return;
+    }
+    /** Orphaned draw state (crash / corrupted save): drop overlay and derive a workable phase */
+    if (state.phase === 'investor_card') {
+      state.pendingCardReveal = null;
+      state.turnOwner = 1;
+      state.phase = 'ai_roll';
+      save();
+      /** fall through */
+    }
+    if (state.phase === 'player_card') {
+      state.pendingCardReveal = null;
+      if (humanServingJail()) {
+        state.phase = 'player_jail';
+      } else {
+        const ridx = state.positions[0];
+        const rsq = BOARD[ridx];
+        if (rsq?.price != null && !ownershipAt(ridx)) state.phase = 'player_buy';
+        else state.phase = 'player_roll';
+      }
+      save();
+      /** fall through → reconcileHumanJailPhase etc. */
+    }
     /** Saves during dice / movement leave `player_resolving`; no UI handles that on refresh. */
     if (state.phase === 'player_resolving') {
       if (state.turnOwner === 0) {
@@ -2427,6 +2921,7 @@ import {
     if (
       state.phase === 'player_buy' ||
       state.phase === 'player_jail' ||
+      state.phase === 'player_card' ||
       (state.phase === 'player_raise_cash' && state.paymentDue)
     ) {
       state.turnOwner = 0;
@@ -2627,6 +3122,14 @@ import {
     }
     if (ph === 'player_jail' && humanServingJail()) {
       renderHumanJailPrompt();
+      return;
+    }
+    if (ph === 'investor_card' && state.pendingCardReveal?.playerIdx === 1) {
+      renderPrompt(`${PLAYER_LABEL.ai} drew a card — read it above, then tap Acknowledged so their turn can proceed.`);
+      return;
+    }
+    if (ph === 'player_card' && state.pendingCardReveal?.playerIdx === 0) {
+      renderPrompt('Read the card — tap Continue to apply it.');
       return;
     }
     if (ph === 'player_roll' && state.turnOwner === 0 && !humanServingJail()) {
@@ -2878,6 +3381,60 @@ import {
     });
   }
 
+  /** Held Get Out Of Jail cards (Chance / Community Chest) — only cards players keep in Bushwickopoly. */
+  function renderHeldGoojfChipsRow(hostEl, playerIdx /** @type {0|1} */) {
+    if (!hostEl) return;
+    hostEl.innerHTML = '';
+    const hasCh = hasGoojf(state.goojfHeld, playerIdx, 'chance');
+    const hasCc = hasGoojf(state.goojfHeld, playerIdx, 'communityChest');
+    if (!hasCh && !hasCc) {
+      hostEl.hidden = true;
+      return;
+    }
+    hostEl.hidden = false;
+    if (hasCh) {
+      const s = document.createElement('span');
+      s.className = 'mono-held-goojf-chip';
+      s.textContent = 'GOOJF · Chance';
+      s.title = 'Get Out of Jail Free — Chance pile';
+      hostEl.appendChild(s);
+    }
+    if (hasCc) {
+      const s = document.createElement('span');
+      s.className = 'mono-held-goojf-chip';
+      s.textContent = 'GOOJF · Chest';
+      s.title = 'Get Out of Jail Free — Community Chest pile';
+      hostEl.appendChild(s);
+    }
+  }
+
+  function syncCardOverlay(paused) {
+    const ov = els.cardOverlay;
+    const btn = els.cardDismiss;
+    const sheet = els.cardSheet;
+    if (!ov || !btn) return;
+    const p = state.pendingCardReveal;
+    const humanReveal =
+      !paused && state.winner == null && state.phase === 'player_card' && p?.playerIdx === 0;
+    const investorReveal =
+      !paused && state.winner == null && state.phase === 'investor_card' && p?.playerIdx === 1;
+    const visible = humanReveal || investorReveal;
+    if (sheet) sheet.classList.toggle('mono-card-sheet--investor', investorReveal);
+    if (visible && p) {
+      if (els.cardDrawer)
+        els.cardDrawer.textContent = investorReveal ? `${PLAYER_LABEL.ai} drew` : 'You drew';
+      if (els.cardOverlayTitle) els.cardOverlayTitle.textContent = p.deckTitle || '';
+      if (els.cardOverlayBody) els.cardOverlayBody.textContent = p.body || '';
+      ov.classList.remove('mono-card-overlay--hidden');
+      btn.textContent = investorReveal ? 'Acknowledged' : 'Continue';
+    } else {
+      ov.classList.add('mono-card-overlay--hidden');
+      if (sheet) sheet.classList.remove('mono-card-sheet--investor');
+      btn.textContent = 'Continue';
+    }
+    btn.disabled = !visible;
+  }
+
   function renderHud() {
     const humanBal = formatMoney(state.cash[0]);
     const aiBal = formatMoney(state.cash[1]);
@@ -2889,6 +3446,7 @@ import {
     if (paused || state.winner != null) collapseMonoExpands();
     const sq = BOARD[state.positions[0]];
     const ph = state.phase;
+    syncCardOverlay(paused);
 
     const hideRoll =
       paused ||
@@ -2898,6 +3456,8 @@ import {
       (state.turnOwner === 0 && humanServingJail()) ||
       ph === 'player_resolving' ||
       ph === 'player_raise_cash' ||
+      ph === 'player_card' ||
+      ph === 'investor_card' ||
       ph === 'ai_roll';
     els.rollBtn.hidden = hideRoll;
 
@@ -2912,6 +3472,8 @@ import {
       humanServingJail() &&
       ph !== 'player_raise_cash' &&
       ph !== 'player_buy' &&
+      ph !== 'player_card' &&
+      ph !== 'investor_card' &&
       ph !== 'player_resolving';
     const showPayDue = !paused && ph === 'player_raise_cash' && state.winner == null && state.paymentDue;
 
@@ -2963,6 +3525,21 @@ import {
       // Fine is always allowed while in jail (optional before 3rd miss; required after).
       els.jailPayBtn.disabled = paused || !inj;
       els.jailRollBtn.disabled = paused || noMoreDoublesRolls || !inj;
+      const jc = els.jailGoojfChance;
+      const jchest = els.jailGoojfChest;
+      if (jc || jchest) {
+        const can = !!showJail && !paused;
+        const hCh = hasGoojf(state.goojfHeld, 0, 'chance');
+        const hCc = hasGoojf(state.goojfHeld, 0, 'communityChest');
+        if (jc) {
+          jc.hidden = !hCh;
+          jc.disabled = !can || !hCh;
+        }
+        if (jchest) {
+          jchest.hidden = !hCc;
+          jchest.disabled = !can || !hCc;
+        }
+      }
     }
 
     const nBuild = humanBuildableProps().length;
@@ -2970,7 +3547,11 @@ import {
       els.developBadge.textContent = nBuild > 0 ? String(nBuild) : '';
       els.developBadge.hidden = nBuild === 0 || state.winner != null;
     }
-    const mgmtLocked = paused || state.winner != null;
+    const mgmtLocked =
+      paused || state.winner != null || ph === 'player_card' || ph === 'investor_card';
+
+    renderHeldGoojfChipsRow(els.goojfHumanDock, 0);
+    renderHeldGoojfChipsRow(els.goojfAiDock, 1);
     if (els.developExpandToggle) {
       els.developExpandToggle.disabled = mgmtLocked;
       els.developExpandToggle.title = paused ? 'Continue or start a new game first.' : '';
@@ -3207,13 +3788,23 @@ import {
         <div class="mono-cash-dock" role="status" aria-label="Cash on hand">
           <div class="mono-cash-dock-pill mono-cash-dock-pill--human">
             <span class="mono-cash-dock-piece mono-piece mono-piece--human" aria-hidden="true"><img alt="" decoding="async" /></span>
-            <span class="mono-cash-dock-label">You</span>
-            <strong class="mono-cash-dock-amt" id="monoCashHumanDock">$0</strong>
+            <div class="mono-cash-dock-stack">
+              <div class="mono-cash-dock-row">
+                <span class="mono-cash-dock-label">You</span>
+                <strong class="mono-cash-dock-amt" id="monoCashHumanDock">$0</strong>
+              </div>
+              <div id="monoGoojfHumanHeld" class="mono-cash-dock-held" aria-label="Held Get Out Of Jail cards" hidden></div>
+            </div>
           </div>
           <div class="mono-cash-dock-pill mono-cash-dock-pill--ai">
             <span class="mono-cash-dock-piece mono-piece mono-piece--ai" aria-hidden="true"><img alt="" decoding="async" /></span>
-            <span class="mono-cash-dock-label">${PLAYER_LABEL.ai}</span>
-            <strong class="mono-cash-dock-amt" id="monoCashAiDock">$0</strong>
+            <div class="mono-cash-dock-stack">
+              <div class="mono-cash-dock-row mono-cash-dock-row--ai">
+                <span class="mono-cash-dock-label">${PLAYER_LABEL.ai}</span>
+                <strong class="mono-cash-dock-amt" id="monoCashAiDock">$0</strong>
+              </div>
+              <div id="monoGoojfAiHeld" class="mono-cash-dock-held mono-cash-dock-held--ai" aria-label="Held Get Out Of Jail cards (${PLAYER_LABEL.ai})" hidden></div>
+            </div>
           </div>
         </div>
       </div>
@@ -3253,8 +3844,18 @@ import {
           <button type="button" class="cta-btn mono-action-btn" id="monoPayDue" hidden>Pay</button>
         </div>
         <div class="mono-actions-jail" id="monoJailActions" hidden>
-          <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailPay">Pay fine</button>
-          <button type="button" class="cta-btn mono-action-btn" id="monoJailRoll">Roll for doubles</button>
+          <div class="mono-actions-jail-primary">
+            <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailPay">Pay fine</button>
+            <button type="button" class="cta-btn mono-action-btn" id="monoJailRoll">Roll for doubles</button>
+          </div>
+          <div class="mono-actions-jail-goojf">
+            <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailGoojfChance" hidden>
+              GOOJF · Chance
+            </button>
+            <button type="button" class="cta-btn mono-action-btn mono-action-btn-outline" id="monoJailGoojfChest" hidden>
+              GOOJF · Chest
+            </button>
+          </div>
         </div>
         <div class="mono-expand-stack">
           <div class="mono-expand" id="monoDevelopExpand">
@@ -3334,6 +3935,14 @@ import {
         </div>
         <ul class="mono-log mono-scrollbar-none" id="monoLog"></ul>
       </div>
+      <div id="monoCardOverlay" class="mono-card-overlay mono-card-overlay--hidden" role="dialog" aria-modal="true" aria-labelledby="monoCardDrawer monoCardOverlayTitle">
+        <div id="monoCardSheet" class="mono-card-sheet">
+          <p class="mono-card-drawer" id="monoCardDrawer"></p>
+          <p class="mono-card-deck-label" id="monoCardOverlayTitle"></p>
+          <p class="mono-card-face" id="monoCardOverlayBody"></p>
+          <button type="button" class="cta-btn mono-card-dismiss" id="monoCardDismiss" disabled>Continue</button>
+        </div>
+      </div>
       <div class="mono-continue" id="monoContinue" hidden>
         <p>Saved game found.</p>
         <button type="button" class="cta-btn" id="monoContinueBtn">Continue</button>
@@ -3363,6 +3972,8 @@ import {
     els.logEl = center.querySelector('#monoLog');
     els.cashHumanDock = center.querySelector('#monoCashHumanDock');
     els.cashAiDock = center.querySelector('#monoCashAiDock');
+    els.goojfHumanDock = center.querySelector('#monoGoojfHumanHeld');
+    els.goojfAiDock = center.querySelector('#monoGoojfAiHeld');
     els.portfolioHumanShell = center.querySelector('#monoPortfolioHumanShell');
     els.portfolioAiShell = center.querySelector('#monoPortfolioAiShell');
     els.portfolioOverviewHumanShell = center.querySelector('#monoPortfolioOverviewHumanShell');
@@ -3378,8 +3989,14 @@ import {
     els.jailActions = center.querySelector('#monoJailActions');
     els.jailPayBtn = center.querySelector('#monoJailPay');
     els.jailRollBtn = center.querySelector('#monoJailRoll');
-
-
+    els.jailGoojfChance = center.querySelector('#monoJailGoojfChance');
+    els.jailGoojfChest = center.querySelector('#monoJailGoojfChest');
+    els.cardOverlay = center.querySelector('#monoCardOverlay');
+    els.cardSheet = center.querySelector('#monoCardSheet');
+    els.cardDrawer = center.querySelector('#monoCardDrawer');
+    els.cardOverlayTitle = center.querySelector('#monoCardOverlayTitle');
+    els.cardOverlayBody = center.querySelector('#monoCardOverlayBody');
+    els.cardDismiss = center.querySelector('#monoCardDismiss');
     function onCurrentSquareActivate() {
       if (state.winner != null) return;
       toggleDeedTile(state.positions[0]);
@@ -3398,6 +4015,9 @@ import {
     els.payDueBtn.addEventListener('click', onPayDue);
     els.jailPayBtn.addEventListener('click', onJailPayFine);
     els.jailRollBtn.addEventListener('click', onJailRollDoubles);
+    els.jailGoojfChance?.addEventListener('click', () => onJailUseGoojf('chance'));
+    els.jailGoojfChest?.addEventListener('click', () => onJailUseGoojf('communityChest'));
+    els.cardDismiss?.addEventListener('click', () => dismissCardOverlay());
     wireMonoExpandSections(center);
     center.querySelector('#monoResetBtn').addEventListener('click', () => startFreshGame());
     center.querySelector('#monoContinueBtn').addEventListener('click', () => {
@@ -3449,6 +4069,7 @@ import {
     if (state.phase === 'player_buy') return true;
     if (state.phase === 'player_jail') return true;
     if (state.phase === 'player_raise_cash' && state.paymentDue) return true;
+    if (state.phase === 'player_card' || state.phase === 'investor_card') return true;
     if (state.phase === 'player_roll' && state.turnOwner === 0) return true;
     if (state.phase === 'player_resolving' && state.turnOwner === 0) return true;
     return false;

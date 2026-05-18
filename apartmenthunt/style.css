@@ -1142,11 +1142,11 @@ body.mono-deed-modal-open {
 .mono-cash-dock-pill {
   display: flex;
   flex: 1 1 auto;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 0.35rem;
   min-width: min(140px, 42%);
-  padding: 0.28rem 0.55rem;
+  padding: 0.35rem 0.55rem 0.4rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.22);
@@ -1183,6 +1183,58 @@ body.mono-deed-modal-open {
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+
+.mono-cash-dock-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.mono-cash-dock-pill--ai .mono-cash-dock-stack {
+  align-items: flex-end;
+}
+
+.mono-cash-dock-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.mono-cash-dock-row--ai {
+  flex-direction: row-reverse;
+}
+
+.mono-cash-dock-held {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: flex-start;
+  max-width: 100%;
+}
+
+.mono-cash-dock-held--ai {
+  justify-content: flex-end;
+}
+
+.mono-held-goojf-chip {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(230, 220, 200, 0.95);
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid rgba(186, 168, 120, 0.45);
+  background: rgba(40, 35, 24, 0.85);
+  white-space: nowrap;
+}
+
+.mono-held-goojf-chip:hover {
+  border-color: rgba(214, 196, 150, 0.55);
 }
 
 .mono-portfolio-region {
@@ -1515,8 +1567,98 @@ body.mono-deed-modal-open {
 
 .mono-actions-jail {
   flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.mono-actions-jail-primary {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   justify-content: center;
+}
+
+.mono-actions-jail-goojf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.mono-card-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem;
+  box-sizing: border-box;
+  background: rgba(6, 5, 3, 0.78);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+}
+
+.mono-card-overlay--hidden {
+  display: none !important;
+}
+
+.mono-card-sheet {
+  max-width: min(26rem, 92vw);
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(18, 16, 12, 0.97);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.mono-card-sheet.mono-card-sheet--investor {
+  border-color: rgba(212, 180, 90, 0.45);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 212, 120, 0.08),
+    0 0 0 1px rgba(180, 140, 55, 0.12);
+}
+
+.mono-card-drawer {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: rgba(246, 240, 220, 0.92);
+  letter-spacing: 0.03em;
+}
+
+.mono-card-deck-label {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+}
+
+.mono-card-face {
+  margin: 0;
+  font-size: clamp(0.94rem, 3.8vw, 1.08rem);
+  line-height: 1.52;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.mono-card-dismiss {
+  align-self: center;
+  margin-top: 0.35rem;
+  min-width: 10rem;
+  font-weight: 700;
 }
 
 .mono-actions-jail:not([hidden]) {
