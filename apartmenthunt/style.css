@@ -418,6 +418,19 @@ header#top {
   font-weight: 600;
 }
 
+.mono-rules-sublist {
+  margin: 0.4rem 0 0;
+  padding-left: 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  list-style: disc;
+}
+
+.mono-rules-sublist li {
+  color: color-mix(in srgb, var(--text-muted) 92%, var(--text));
+}
+
 .mono-board-wrap {
   width: 100%;
   margin: 0 auto;
