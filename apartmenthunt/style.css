@@ -1914,39 +1914,9 @@ body.mono-deed-modal-open {
     bottom: 2px;
   }
 
-  /* Trackwork corner: shorter label on small screens (full name in [title] + deeds). */
-  body.page-monopoly .mono-cell--trackwork .mono-name {
-    font-size: 0;
-    line-height: 0;
-    letter-spacing: -0.04em;
-    overflow: hidden;
-    word-break: normal;
-  }
-
-  body.page-monopoly .mono-cell--trackwork .mono-name br {
-    display: none;
-  }
-
-  body.page-monopoly .mono-cell--trackwork .mono-name::after {
-    content: 'transit jail';
-    font-family: var(--handwriting);
-    font-size: clamp(7px, 2.75vw, 11px);
-    line-height: 1.15;
-    letter-spacing: normal;
-    color: #f5d4b8;
-    display: block;
-  }
-
-  /* Priced squares: names truncate badly — show amount only (full name still in [title]). */
-  body.page-monopoly .mono-cell-body:has(> .mono-price) > .mono-name {
-    display: none;
-  }
-
-  body.page-monopoly .mono-cell-body:has(> .mono-price) > .mono-price {
-    font-size: 0.68em;
-    font-weight: 600;
-    color: var(--text-muted);
-    letter-spacing: -0.02em;
+  /* No tile copy on small screens — strips + tokens only (details stay in [title] / deed tray). */
+  body.page-monopoly .mono-board .mono-cell-body {
+    display: none !important;
   }
 }
 

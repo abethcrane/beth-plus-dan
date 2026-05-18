@@ -2,6 +2,15 @@
 
 import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENTS } from './ai/index.js';
 
+import {
+  niceSquareDeck,
+  CARD_DECKS_SKELETON,
+  RIDGEWOOD_COMMONS_CSA,
+} from './card-decks-skeleton.js';
+
+  void CARD_DECKS_SKELETON; // deck body + resolver wiring — see Chance / Community Chest skeleton module
+  void RIDGEWOOD_COMMONS_CSA; // optional $1k CSA copy replaces school-fees slot when you wire it
+
   const STORAGE_KEY = 'bushwick-monopoly-state-v17';
   const STARTING_CASH = 37500;
   const GO_BONUS = 5000;
@@ -59,7 +68,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
     { kind: 'tax', name: 'Broker Fee', tax: 200 * 25, side: 's' },
     { kind: 'transit', name: 'G Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 's', stripColor: '#6cbe45' },
     { kind: 'property', name: '60th Pl', group: 'light_blue', side: 's', ...ukProp(100, 50, [6, 30, 90, 270, 400, 550]) },
-    { kind: 'nice', name: 'Mixtape', side: 's' },
+    { kind: 'nice', name: 'OPC', side: 's' },
     { kind: 'property', name: 'Forest Ave', group: 'light_blue', side: 's', ...ukProp(100, 50, [6, 30, 90, 270, 400, 550]) },
     { kind: 'property', name: '69th Ave', group: 'light_blue', side: 's', ...ukProp(120, 50, [8, 40, 100, 300, 450, 600]) },
     { kind: 'corner', name: 'Shuttle stop', side: 'nw' },
@@ -104,7 +113,7 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
     { kind: 'nice', name: 'Citibike Dock', side: 'e' },
     { kind: 'property', name: 'Woodward Ave', group: 'green', side: 'e', ...ukProp(320, 200, [28, 150, 450, 1000, 1200, 1400]) },
     { kind: 'transit', name: 'M Train', price: 200 * 25, baseRent: 0, group: 'transit', side: 'e', stripColor: '#ff6319' },
-    { kind: 'nice', name: 'Panina', side: 'e' },
+    { kind: 'nice', name: 'Phil’s', side: 'e' },
     { kind: 'property', name: 'Cornelia St', group: 'blue', side: 'e', ...ukProp(350, 200, [35, 175, 500, 1100, 1300, 1500]) },
     { kind: 'tax', name: 'Application Fee', tax: 100 * 25, side: 'e' },
     { kind: 'property', name: 'Catalpa Ave', group: 'blue', side: 'e', ...ukProp(400, 200, [50, 200, 600, 1400, 1700, 2000]) },
@@ -315,7 +324,14 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
     } else if (sq.kind === 'tax' && sq.tax != null) {
       body += `<p class="mono-deed-note">Landing here: pay <strong>${formatMoney(sq.tax)}</strong>.</p>`;
     } else if (sq.kind === 'nice') {
-      body += `<p class="mono-deed-note">Community spot — no purchase. Draw-style rules don’t apply in this build; landing does nothing special.</p>`;
+      const deck = niceSquareDeck(idx);
+      if (deck === 'communityChest') {
+        body += `<p class="mono-deed-note">Community Chest — no purchase; draw pile not wired yet in this build.</p>`;
+      } else if (deck === 'chance') {
+        body += `<p class="mono-deed-note">Chance — no purchase; draw pile not wired yet in this build.</p>`;
+      } else {
+        body += `<p class="mono-deed-note">Community spot — no purchase. Draw-style rules don’t apply in this build.</p>`;
+      }
     } else if (sq.kind === 'corner') {
       if (idx === 0) {
         body += `<p class="mono-deed-note">Pass or land here: collect <strong>${formatMoney(GO_BONUS)}</strong>.</p>`;
@@ -1966,7 +1982,9 @@ import { getStrategy, normalizeAiVariant, AI_VARIANT_YES_MAN, DIFFICULTY_SEGMENT
       return;
     }
     if (sq.kind === 'nice') {
-      log(`${you} landed on ${sq.name} (nothing owed).`);
+      const deck = niceSquareDeck(idx);
+      const dk = deck === 'communityChest' ? 'Community Chest' : deck === 'chance' ? 'Chance' : 'Nice spot';
+      log(`${you} landed on ${sq.name} (${dk} · draw pile not wired yet — nothing owed).`);
       return;
     }
     if (sq.kind === 'corner') {
